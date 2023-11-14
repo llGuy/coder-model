@@ -17,7 +17,7 @@ enum class Operation {
   Sub,
   Mul,
   Div,
-  Mod,
+  Mov,
 
   /* Takes in register and number of lines to skip. */
   BranchLess,
@@ -31,7 +31,7 @@ char *kOperationNames[] = {
   "sub",
   "mul",
   "div",
-  "mod",
+  "mov",
   "bl",
   "bg",
   "be"
@@ -147,18 +147,26 @@ struct ProgramState {
 
 /* Generate a storeable operand */
 OperandData generateLValue(ProgramState &state,
-                           Rand &rnd)
+                           Rand &rnd,
+                           Operation opType)
 {
   if (rnd.next() % 2 == 0) {
     uint32_t regIdx = rnd.next() % 
       std::min(kNumRegisters, state.usedRegisters + 1);
 
-    if (regIdx >= state.usedRegisters)
+    if (regIdx >= state.usedRegisters) {
+      // Move operation has to be the first thing that happens if using register
+      // as L value.
+      if (opType != Operation::Mov)
+        goto reject;
+
       state.incrementUsedRegisters = true;
+    }
 
     return { Operand::Register, (int)regIdx };
   }
 
+reject:
   uint32_t inputIdx = rnd.next() % state.numInputs;
   return {Operand::Input, (int)inputIdx};
 }
@@ -216,15 +224,16 @@ char *pushInstructions(ProgramState &state,
   OperationData opData = { instruction };
   switch (instruction) {
     case Operation::Add: case Operation::Sub:
-    case Operation::Mul: case Operation::Div: {
-      opData.left = generateLValue(state, rnd);
+    case Operation::Mul: case Operation::Div:
+    case Operation::Mov: {
+      opData.left = generateLValue(state, rnd, instruction);
       opData.right = generateRValue(state, rnd);
     } break;
 
     case Operation::BranchLess:
     case Operation::BranchGreater:
     case Operation::BranchEqual: {
-      opData.left = generateLValue(state, rnd);
+      opData.left = generateRestrictedLValue(state, rnd);
       opData.right = { Operand::None, rnd.next(kMinLinesBranch, 
                                                kMaxLinesBranch) };
     } break;
@@ -298,7 +307,7 @@ char *deserializeInstruction(char *reader, OperationData &op)
     reader += 4;
   }
   else if (reader[0] == 'm' && reader[1] == 'o') {
-    opCode = Operation::Mod;
+    opCode = Operation::Mov;
     reader += 4;
   }
   else if (reader[0] == 'b') {
@@ -444,8 +453,8 @@ int *executeProgram(const Program &program)
         *leftContainer /= *rightContainer;
       } break;
 
-      case Operation::Mod: {
-        *leftContainer %= *rightContainer;
+      case Operation::Mov: {
+        *leftContainer = *rightContainer;
       } break;
 
       case Operation::BranchLess: {
@@ -529,7 +538,7 @@ int main()
 }
 #endif
 
-#if 1 
+#if 1
 /* Generate data set */
 int main()
 {
@@ -559,8 +568,8 @@ int main()
   assert(metadataStream.is_open());
 
   for (int i = 0; i < numTrainingExamples; ++i) {
-    uint32_t numInputs = rnd.next(1, kMaxInputs);
-    uint32_t numOutputs = rnd.next(1, numInputs);
+    uint32_t numInputs = rnd.next(1, kMaxInputs+1);
+    uint32_t numOutputs = rnd.next(1, numInputs+1);
 
     /* Generate the program */
     char *src = makeProgram(numInputs, rnd);
