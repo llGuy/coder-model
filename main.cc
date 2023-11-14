@@ -1,8 +1,11 @@
 #include <vector>
 #include <random>
 #include <stdio.h>
+#include <fstream>
 #include <stdlib.h>
 #include <string.h>
+#include <iostream>
+#include <filesystem>
 
 /* Maximum number of characters a program can have. */
 inline constexpr uint32_t kMaxProgramSize = 2048;
@@ -128,6 +131,9 @@ struct Rand {
 
   int next(int min, int max)
   {
+    if (min == max)
+      return min;
+
     return min + dist(mt) % (max-min);
   }
 };
@@ -487,7 +493,7 @@ int *executeProgram(const Program &program)
 }
 
 /* Example of how to use. */
-#if 1
+#if 0
 int main()
 {
   char *outputFile = "test.asm";
@@ -523,4 +529,100 @@ int main()
 }
 #endif
 
+#if 1 
 /* Generate data set */
+int main()
+{
+  char tmpBuffer[1024] = {};
+
+  namespace fs = std::filesystem;
+
+  /* Create dataset directory if needed. */
+  if (!fs::exists(fs::path("dataset"))) {
+    fs::create_directory(fs::path("dataset"));
+  }
+  else {
+    fs::remove_all(fs::path("dataset"));
+    fs::create_directory(fs::path("dataset"));
+  }
+
+  uint32_t numTrainingExamples = 10;
+
+  /* Initialize random number generator. */
+  Rand rnd = {
+    .dev = std::random_device(),
+    .mt = std::mt19937(rnd.dev()),
+    .dist = std::uniform_int_distribution<>(0, 1024)
+  };
+
+  std::fstream metadataStream(fs::path("dataset") / "metadata.txt", std::ios::out);
+  assert(metadataStream.is_open());
+
+  for (int i = 0; i < numTrainingExamples; ++i) {
+    uint32_t numInputs = rnd.next(1, kMaxInputs);
+    uint32_t numOutputs = rnd.next(1, numInputs);
+
+    /* Generate the program */
+    char *src = makeProgram(numInputs, rnd);
+
+    { /* Save the program to a file. */
+      std::string programFileName = "src-" + std::to_string(i) + ".asm";
+      std::fstream stream(fs::path("dataset") / programFileName, std::ios::out);
+      assert(stream.is_open());
+      stream << (const char *)src;
+      stream.close();
+    }
+
+    Program prog = {
+      .numInputs = numInputs,
+      .numOutputs = numOutputs,
+      .src = src,
+      .inputs = nullptr
+    };
+
+    /* Write the input output pair file. */
+    std::string ioFileName = "io-pair-" + std::to_string(i) + ".txt";
+    std::fstream streamIO(fs::path("dataset") / ioFileName, std::ios::out);
+    assert(streamIO.is_open());
+
+    /* Generate the input output pairs. */
+    for (int ioPair = 0; ioPair < 1000; ++ioPair) {
+      int inputs[kMaxInputs] = {};
+      for (int j = 0; j < kMaxInputs; ++j) {
+        inputs[j] = (rnd.next() % 2048) - 1024;
+      }
+
+      prog.inputs = inputs;
+
+      int *outputs = executeProgram(prog);
+
+      /* Write the input output pair to a file. */
+      std::string inputString = "{";
+      for (int j = 0; j < numInputs; ++j) {
+        inputString += std::to_string(inputs[j]);
+        if (j < numInputs-1)
+          inputString += ',';
+      }
+      inputString += "}->{";
+      for (int j = 0; j < numOutputs; ++j) {
+        inputString += std::to_string(outputs[j]);
+        if (j < numOutputs-1)
+          inputString += ',';
+      }
+      inputString += "}\n";
+
+      streamIO << inputString;
+
+      free(outputs);
+    }
+
+    streamIO.close();
+
+    free(src);
+
+    metadataStream << numInputs << "->" << numOutputs << "\n";
+  }
+
+  metadataStream.close();
+}
+#endif
