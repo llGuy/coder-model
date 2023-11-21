@@ -33,11 +33,11 @@ class BaselineNet(nn.Module):
     out1 = F.log_softmax(b1, dim=len(b1.shape)-1)
 
     b2 = self.br2(x)
-    b2 = b2.reshape((*b2.shape[:-1], data.MAX_INSTRUCTIONS_PER_PROGRAM, 5))
+    b2 = b2.reshape((*b2.shape[:-1], data.MAX_INSTRUCTIONS_PER_PROGRAM, 6))
     out2 = F.log_softmax(b2, dim=len(b2.shape)-1)
 
     b3 = self.br3(x)
-    b3 = b3.reshape((*b3.shape[:-1], data.MAX_INSTRUCTIONS_PER_PROGRAM, 5))
+    b3 = b3.reshape((*b3.shape[:-1], data.MAX_INSTRUCTIONS_PER_PROGRAM, 26))
     out3 = F.log_softmax(b3, dim=len(b3.shape)-1)
 
     return out1, out2, out3
