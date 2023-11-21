@@ -28,3 +28,16 @@ class BaselineNet(nn.Module):
     x = F.relu(x)
 
     # Branch out
+    b1 = self.br1(x)
+    b1 = b1.reshape((*b1.shape[:-1], data.MAX_INSTRUCTIONS_PER_PROGRAM, 5))
+    out1 = F.log_softmax(b1, dim=len(b1.shape)-1)
+
+    b2 = self.br2(x)
+    b2 = b2.reshape((*b2.shape[:-1], data.MAX_INSTRUCTIONS_PER_PROGRAM, 5))
+    out2 = F.log_softmax(b2, dim=len(b2.shape)-1)
+
+    b3 = self.br3(x)
+    b3 = b3.reshape((*b3.shape[:-1], data.MAX_INSTRUCTIONS_PER_PROGRAM, 5))
+    out3 = F.log_softmax(b3, dim=len(b3.shape)-1)
+
+    return out1, out2, out3
