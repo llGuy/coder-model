@@ -6,7 +6,6 @@
 #include <string.h>
 #include <iostream>
 #include <filesystem>
-
 #include <assert.h>
 
 /* Maximum number of characters a program can have. */
