@@ -180,20 +180,6 @@ reject:
   return {Operand::Input, (int)inputIdx};
 }
 
-/* For branch operations. Don't want to branch off of a register
- * which hasn't been written to yet. */
-OperandData generateRestrictedLValue(ProgramState &state,
-                                     Rand &rnd)
-{
-  if (rnd.next() % 2 == 0 && state.usedRegisters) {
-    uint32_t regIdx = rnd.next() % state.usedRegisters;
-    return { Operand::Register, (int)regIdx };
-  }
-
-  uint32_t inputIdx = rnd.next() % state.numInputs;
-  return {Operand::Input, (int)inputIdx};
-}
-
 OperandData generateRValueImpl(ProgramState &state,
                                Operation opType,
                                const OperandData &left,
@@ -235,6 +221,10 @@ OperandData generateRValue(ProgramState &state,
   }
 
   if (opType == Operation::Mov && tmp == left) {
+    return generateRValue(state, opType, left, rnd);
+  }
+
+  if (opType == Operation::Mov && tmp.op == Operand::Literal && tmp.value == 0) {
     return generateRValue(state, opType, left, rnd);
   }
 
