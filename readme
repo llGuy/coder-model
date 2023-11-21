@@ -1,1 +1,16 @@
 # CS229 Final Project
+
+Neural Network data format:
+
+30 entries, 
+
+	 entry format:
+	 	5-vector instruction probabilities
+		6-vector lvalue probabilities
+		26-vector rvalue probabilities
+		a norm zero vector corresponds to a nop.
+
+Test the following arch:
+
+	relu relu branch for each section
+	relu relu massive hidden layer

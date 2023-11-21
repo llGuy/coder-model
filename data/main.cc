@@ -15,8 +15,9 @@ inline constexpr uint32_t kNumRegisters = 3;
 inline constexpr uint32_t kMaxInputs = 3;
 
 // 30 instructions, each with 5-float, 6-float, and 26-float components.
+#define PROGRAM_NUM_INSTR 30
 #define PROGRAM_INSTR_LEN_BYTES (sizeof(float) * (5 + 6 + 26))
-#define PROGRAM_SIZE_BYTES (30 * PROGRAM_INSTR_LEN_BYTES)
+#define PROGRAM_SIZE_BYTES (PROGRAM_NUM_INSTR * PROGRAM_INSTR_LEN_BYTES)
 
 enum class Operation {
   Add,
@@ -25,13 +26,7 @@ enum class Operation {
   Div,
   Mov,
 	Nop, 
-
-  /* Takes in register and number of lines to skip. */
-  BranchLess,
-  BranchGreater,
-  BranchEqual,
   None
-
 };
 
 enum class Operand {
@@ -39,12 +34,6 @@ enum class Operand {
   Literal,
   Register,
   None
-};
-
-struct OperationData {
-  Operation op;
-  OperandData left;
-  OperandData right;
 };
 
 struct OperandData {
@@ -56,6 +45,11 @@ struct OperandData {
   int value;
 };
 
+struct OperationData {
+  Operation op;
+  OperandData left;
+  OperandData right;
+};
 
 char const *kOperationNames[] = {
   "add",
@@ -63,11 +57,7 @@ char const *kOperationNames[] = {
   "mul",
   "div",
   "mov",
-	/*
-  "bl",
-  "bg",
-  "be"
-	*/
+	"nop"
 };
 
 char *serializeString(char const *str, char *mem)
@@ -93,11 +83,13 @@ char *serializeNewline(char *mem)
   return mem + 1;
 }
 
+void serializeNull(char *mem)
+{
+	*mem = 0;
+}
+
 inline constexpr uint32_t kNumOperations =
   (uint32_t)Operation::None;
-
-inline constexpr uint32_t kMinLinesBranch = 2;
-inline constexpr uint32_t kMaxLinesBranch = 5;
 
 inline constexpr uint32_t kNumOperands =
   (uint32_t)Operand::None;
@@ -183,20 +175,6 @@ reject:
   return {Operand::Input, (int)inputIdx};
 }
 
-/* For branch operations. Don't want to branch off of a register
- * which hasn't been written to yet. */
-OperandData generateRestrictedLValue(ProgramState &state,
-                                     Rand &rnd)
-{
-  if (rnd.next() % 2 == 0 && state.usedRegisters) {
-    uint32_t regIdx = rnd.next() % state.usedRegisters;
-    return { Operand::Register, (int)regIdx };
-  }
-
-  uint32_t inputIdx = rnd.next() % state.numInputs;
-  return {Operand::Input, (int)inputIdx};
-}
-
 OperandData generateRValue(ProgramState &state,
                            Rand &rnd)
 {
@@ -218,20 +196,21 @@ OperandData generateRValue(ProgramState &state,
 
 Operation generateOperation(Rand &rnd)
 {
-	/*
-  if (rnd.next() % 4 == 0) {
-    return (Operation)((int)Operation::BranchLess + rnd.next() % 3);
-  }
-  else {
-    return (Operation)(rnd.next() % 5);
-  }
-	*/
 	return (Operation) (rnd.next() % 5);
 }
 
 #define INSTR_PROB_VECTOR_LEN ((int) Operation::Nop)
-#define LVAL_PROB_VECTOR_LEN (kNumInputs + kNumRegisters)
-#define RVAL_PROB_VECOTR_LEN (kNuminputs + kNumRegisters + kLiteralRange)
+#define LVAL_PROB_VECTOR_LEN (kMaxInputs + kNumRegisters)
+#define RVAL_PROB_VECOTR_LEN (kMaxInputs + kNumRegisters + kLiteralRange)
+
+float *serializeFloats(float *dst, float *src, uint64_t numFloats)
+{
+	for (uint64_t i = 0; i < numFloats; ++i)
+	{
+		memcpy(dst + i, src + i, sizeof(float));
+	}
+	return dst + numFloats;
+}
 
 float *serializeInstr(OperationData opData, float *progMem)
 {
@@ -241,16 +220,12 @@ float *serializeInstr(OperationData opData, float *progMem)
 		return (float *) ((char *) progMem + PROGRAM_INSTR_LEN_BYTES);
 	}
 	
-	// Test for little-end, fuss if not.
-	uint64_t instr_buf = 255;
-	assert(*(uint8_t *) &instr_buf == 255);	
-
 	// Else, construct the appropriate float vector, and memcpy.
 	float instr_probs[INSTR_PROB_VECTOR_LEN] = {0};
 	float lval_probs[LVAL_PROB_VECTOR_LEN] = {0}; // ordered {inputs..., registers...}
 	float rval_probs[RVAL_PROB_VECOTR_LEN] = {0}; // ordered {inputs..., registers..., literals...}
 	
-	instr_probs[opData.op] = 1.0f;
+	instr_probs[(uint32_t) opData.op] = 1.0f;
 
 	switch (opData.left.op)
 	{
@@ -260,7 +235,7 @@ float *serializeInstr(OperationData opData, float *progMem)
 		} break;
 		case Operand::Register:
 		{
-			lval_probs[kNumInputs + opData.left.value] = 1.0f;
+			lval_probs[kMaxInputs + opData.left.value] = 1.0f;
 		} break;
 		default:
 		{
@@ -278,40 +253,28 @@ float *serializeInstr(OperationData opData, float *progMem)
 		} break;
 		case Operand::Register:
 		{
-			rval_probs[kNumInputs + opData.right.value] = 1.0f;
+			rval_probs[kMaxInputs + opData.right.value] = 1.0f;
 		} break;
 		case Operand::Literal:
 		{
-			rval_probs[kNumInputs + kNumRegisters + kLiteralOffset + opData.right.value] = 1.0f;
+			rval_probs[kMaxInputs + kNumRegisters + kLiteralOffset + opData.right.value] = 1.0f;
 		} break;
-		default: {} break;
+		default: 
+		{
+			printf("Improper rvalue requested, aborting.\n");
+			assert(0);
+		} break;
 	}
 	
-	printf("Generated arrays:\n");
-	printf("instr probs: ");
-	for (int i = 0; i < INSTR_PROB_VECTOR_LEN; ++i)
-	{
-		std::cout << std::fixed << std::setprecision(2) << instr_probs[i] << " ";
-	}
-	std::cout << std::endl;
-	printf("instr probs: ");
-	for (int i = 0; i < INSTR_PROB_VECTOR_LEN; ++i)
-	{
-		std::cout << std::fixed << std::setprecision(2) << instr_probs[i] << " ";
-	}
-	std::cout << std::endl;
-	printf("lvalue probs: ");
-	for (int i = 0; i < INSTR_PROB_VECTOR_LEN; ++i)
-	{
-		std::cout << std::fixed << std::setprecision(2) << instr_probs[i] << " ";
-	}
-	std::cout << std::endl;
-
-	
-	return NULL;
+	// memcpy instr vector, then lval vector, then rval vector.
+	float *save_ptr;
+	save_ptr = serializeFloats(progMem, instr_probs, INSTR_PROB_VECTOR_LEN);
+	save_ptr = serializeFloats(save_ptr, lval_probs, LVAL_PROB_VECTOR_LEN);
+	save_ptr = serializeFloats(save_ptr, rval_probs, RVAL_PROB_VECOTR_LEN);
+	return save_ptr;
 }
 
-char *pushInstructions(ProgramState &state,
+char *pushInstruction(ProgramState &state,
                       Rand &rnd)
 {
   /* Generate a random instruction. */
@@ -327,38 +290,21 @@ char *pushInstructions(ProgramState &state,
       opData.right = generateRValue(state, rnd);
     } break;
 		default: {} break;
-
-		/*
-    case Operation::BranchLess:
-    case Operation::BranchGreater:
-    case Operation::BranchEqual: {
-      opData.left = generateRestrictedLValue(state, rnd);
-      opData.right = { Operand::None, rnd.next(kMinLinesBranch, 
-                                               kMaxLinesBranch) };
-    } break;
-		*/
   }
-
-  /* Serialize instruction as string. */
-  char *s = serializeOpCode(opData.op, state.programMemory);
-  s = serializeSpace(s);
-  s = serializeOperandData(opData.left, s);
-  s = serializeSpace(s);
-  s = serializeOperandData(opData.right, s);
-  s = serializeNewline(s);
 
   if (state.incrementUsedRegisters) {
     state.usedRegisters++;
     state.incrementUsedRegisters = false;
   }
 
-  return s;
+	/* Serialize instruction as probability vectors. */
+	return (char *) serializeInstr(opData, (float *) state.programMemory);
 }
 
 /* Generates a 30-entry program where each entry is a 37-vector
  * with 16-bit float entries.
  */
-char *makeProgram(uint32_t numInputs,
+float *makeProgram(uint32_t numInputs,
                   Rand &rnd)
 {
 	float *progMem = (float *) calloc(1, PROGRAM_SIZE_BYTES);
@@ -371,141 +317,152 @@ char *makeProgram(uint32_t numInputs,
 	uint32_t instr_left = 10 + rnd.next() % 20;
 	while (instr_left--)
 	{
-		programState.programMemory = pushInstructions(programState, rnd);
+		programState.programMemory = pushInstruction(programState, rnd);
 	}
-	return (char *) progMem;
-
-	/*
-  char *programMemory = (char *)malloc(sizeof(char) * kMaxProgramSize);
-  ProgramState programState = {
-    .programMemory = programMemory,
-    .numInputs = numInputs,
-    .usedRegisters = 0
-  };
-
-  int32_t instructionsLeft = 10 + (rnd.next() % 20);
-
-  while (instructionsLeft--) {
-    programState.programMemory = pushInstructions(programState, rnd);
-  }
-
-  return programMemory;
-	*/
+	return progMem;
 }
 
 struct Program {
   uint32_t numInputs;
   uint32_t numOutputs;
   /* Source code */
-  char *src;
+  float *src;
 
   int *inputs;
 };
 
-char *deserializeInstruction(char *reader, OperationData &op)
+uint64_t argmax_idx(float *vec, uint64_t num_elem)
 {
-  Operation opCode;
+	assert(num_elem > 0);
+	uint64_t max_idx = 0;
+	for (uint64_t i = 1; i < num_elem; ++i)
+	{
+		if (vec[i] > vec[max_idx]) max_idx = i;
+	}
+	return max_idx;
+}
 
-  bool isBranch = false;
+float *deserializeInstruction(float *reader, OperationData &op)
+{
+	// printf("DESERIALIZING NEW INSTRUCITON FROM IN STREAM\n");
+	uint64_t argmax;
+	
+	Operation opCode;
+	OperandData left;
+	OperandData right;
 
-  /* First, get instruction type. */
-  if (reader[0] == 'a') {
-    opCode = Operation::Add;
-    reader += 4;
-  }
-  else if (reader[0] == 's') {
-    opCode = Operation::Sub;
-    reader += 4;
-  }
-  else if (reader[0] == 'm' && reader[1] == 'u') {
-    opCode = Operation::Mul;
-    reader += 4;
-  }
-  else if (reader[0] == 'd') {
-    opCode = Operation::Div;
-    reader += 4;
-  }
-  else if (reader[0] == 'm' && reader[1] == 'o') {
-    opCode = Operation::Mov;
-    reader += 4;
-  }
-  else if (reader[0] == 'b') {
-    isBranch = true;
+	/* Extract and parse operation probabilities. Select operation with the highest
+	 * probability. */
 
-    if (reader[1] == 'l') {
-      opCode = Operation::BranchLess;
-      reader += 3;
-    }
-    else if (reader[1] == 'g') {
-      opCode = Operation::BranchGreater;
-      reader += 3;
-    }
-    else if (reader[1] == 'e') {
-      opCode = Operation::BranchEqual;
-      reader += 3;
-    }
-    else {
-      assert(false);
-    }
-  }
-  else {
-    assert(false);
-  }
+	// Unload instr probs from input stream.
+	float instr_probs[INSTR_PROB_VECTOR_LEN];
+	memcpy(instr_probs, reader, sizeof(instr_probs));
+	reader += INSTR_PROB_VECTOR_LEN;
 
-  OperandData left;
+	// If all instruction values equal to 0, return nop.
+	int nop = 1;
+	for (int i = 0; i < INSTR_PROB_VECTOR_LEN; ++i) 
+	{
+		if (instr_probs[i] != 0.0f) { nop = 0; break; }
+	}
+	if (nop) { opCode = Operation::Nop; goto fill_instr; }
 
-  /* Get the left operand. */
-  if (reader[0] == 'x') {
-    left.op = Operand::Input;
-    left.value = reader[1] - '0';
-    reader += 3;
-  }
-  else if (reader[0] == 'r') {
-    left.op = Operand::Register;
-    left.value = reader[1] - '0';
-    reader += 3;
-  }
-  else {
-    assert(false);
-  }
+	// Determine the index of the highest probability.
+	argmax = argmax_idx(instr_probs, INSTR_PROB_VECTOR_LEN);
+	opCode = (Operation) argmax;
 
-  OperandData right = {};
+	/* Extract and parse lvalue probabilities. Select lvalue with the highest
+	 * probability. */
 
-  if (reader[0] == 'x') {
-    right.op = Operand::Input;
-    right.value = reader[1] - '0';
-    reader += 2;
-  }
-  else if (reader[0] == 'r') {
-    right.op = Operand::Register;
-    right.value = reader[1] - '0';
-    reader += 2;
-  }
-  else {
-    right.op = Operand::Literal;
+	// Unload lval probs from input stream.
+	float lval_probs[LVAL_PROB_VECTOR_LEN];
+	memcpy(lval_probs, reader, sizeof(lval_probs));
+	reader += LVAL_PROB_VECTOR_LEN;
 
-    /* Literal */
-    bool negative = false;
-    if (reader[0] == '-') {
-      negative = true;
-      reader += 1;
-    }
+	// Determine index of highest probability.
+	argmax = argmax_idx(lval_probs, LVAL_PROB_VECTOR_LEN);	
+	if (argmax < kMaxInputs)
+	{
+		left.op = Operand::Input;
+		left.value = argmax;
+	}
+	else
+	{
+		left.op = Operand::Register;
+		left.value = argmax - kMaxInputs;
+	}
 
-    /* Parse the number. */
-    while (*reader != '\n' && *reader != 0) {
-      right.value = right.value * 10 + (reader[0] - '0');
-      reader += 1;
-    }
+	/* Extract and parse rvalue probabilities. Select rvalue with the highest
+	 * probability. */
 
-    if (negative)
-      right.value *= -1;
-  }
+	// Unload rval probs from input stream.
+	float rval_probs[RVAL_PROB_VECOTR_LEN];
+	memcpy(rval_probs, reader, sizeof(rval_probs));
+	reader += RVAL_PROB_VECOTR_LEN;
 
-  op.op = opCode;
-  op.left = left;
-  op.right = right;
+	// Determine the index of highest probability.
+	argmax = argmax_idx(rval_probs, RVAL_PROB_VECOTR_LEN);
+	if (argmax < kMaxInputs)
+	{
+		right.op = Operand::Input;
+		right.value = argmax;
+	}
+	else if (argmax < kMaxInputs + kNumRegisters)
+	{
+		right.op = Operand::Register;
+		right.value = argmax - kMaxInputs;
+	}
+	else
+	{
+		right.op = Operand::Literal;
+		right.value = argmax - kMaxInputs - kNumRegisters - kLiteralOffset;
+	}
 
-  return reader;
+fill_instr:
+	op.op = opCode;
+	op.left = left;
+	op.right = right;
+
+#if 1 // !!!!!!!!!!!Uncomment this to dump the probability vectors and the instructions
+			// they correspond to!!!!!!!!!!!!!
+	// Compare generated instruction with probability arrays.
+	/*
+	printf("read arrays:\n");
+	printf("instr probs: ");
+	for (int i = 0; i < INSTR_PROB_VECTOR_LEN; ++i)
+	{
+		std::cout << std::fixed << std::setprecision(2) << instr_probs[i] << " ";
+	}
+	std::cout << std::endl;
+	printf("instr probs: ");
+	for (int i = 0; i < LVAL_PROB_VECTOR_LEN; ++i)
+	{
+		std::cout << std::fixed << std::setprecision(2) << lval_probs[i] << " ";
+	}
+	std::cout << std::endl;
+	printf("lvalue probs: ");
+	for (int i = 0; i < RVAL_PROB_VECOTR_LEN; ++i)
+	{
+		std::cout << std::fixed << std::setprecision(2) << rval_probs[i] << " ";
+	}
+	std::cout << std::endl;
+	*/
+
+  // Serialize instruction as string.
+	char instr[50];
+	char *s = (char *) instr;
+	char *save = s;
+  s = serializeOpCode(op.op, s);
+  s = serializeSpace(s);
+  s = serializeOperandData(op.left, s);
+  s = serializeSpace(s);
+  s = serializeOperandData(op.right, s);
+  s = serializeNewline(s);
+	*s = 0;
+	printf("%s", save);
+#endif 
+
+	return reader;
 }
 
 int *executeProgram(const Program &program)
@@ -518,12 +475,13 @@ int *executeProgram(const Program &program)
     inputs[i] = program.inputs[i];
   }
 
-  char *currentChar = program.src;
+  float *currentInstr = program.src;
 
-  while (*currentChar != 0) {
-    OperationData instr;
-    currentChar = deserializeInstruction(currentChar, instr);
-    currentChar += 1;
+	for (int i = 0; i < PROGRAM_NUM_INSTR; ++i)
+	{
+		OperationData instr;
+		currentInstr = deserializeInstruction(currentInstr, instr);
+		if (instr.op == Operation::Nop) continue;
 
     int *leftContainer;
     if (instr.left.op == Operand::Input) {
@@ -544,13 +502,6 @@ int *executeProgram(const Program &program)
       rightContainer = &registers[instr.right.value];
     }
     else if (instr.right.op == Operand::Literal) {
-      currentLiteral = instr.right.value;
-      rightContainer = &currentLiteral;
-    }
-    else {
-      assert(instr.op == Operation::BranchLess || instr.op == Operation::BranchGreater ||
-             instr.op == Operation::BranchEqual);
-
       currentLiteral = instr.right.value;
       rightContainer = &currentLiteral;
     }
@@ -577,43 +528,8 @@ int *executeProgram(const Program &program)
       } break;
 		
 			default: {} break;
-
-			/*
-      case Operation::BranchLess: {
-        if (*leftContainer < 0) {
-          int numLines = *rightContainer;
-          while (*currentChar != 0 && numLines) {
-            currentChar = deserializeInstruction(currentChar, instr);
-            currentChar += 1;
-            --numLines;
-          }
-        }
-      } break;
-
-      case Operation::BranchGreater: {
-        if (*leftContainer > 0) {
-          int numLines = *rightContainer;
-          while (*currentChar != 0 && numLines) {
-            currentChar = deserializeInstruction(currentChar, instr);
-            currentChar += 1;
-            --numLines;
-          }
-        }
-      } break;
-
-      case Operation::BranchEqual: {
-        if (*leftContainer == 0) {
-          int numLines = *rightContainer;
-          while (*currentChar != 0 && numLines) {
-            currentChar = deserializeInstruction(currentChar, instr);
-            currentChar += 1;
-            --numLines;
-          }
-        }
-      } break;
-			*/
     }
-  }
+	}
 
   int *outputs = (int *)malloc(sizeof(int) * program.numOutputs);
 
@@ -622,46 +538,9 @@ int *executeProgram(const Program &program)
   }
 
   return outputs;
+
 }
 
-/* Example of how to use. */
-#if 0
-int main()
-{
-  char *outputFile = "test.asm";
-
-  Rand rnd = {
-    .dev = std::random_device(),
-    .mt = std::mt19937(rnd.dev()),
-    .dist = std::uniform_int_distribution<>(0, 1024)
-  };
-
-  char *src = makeProgram(3, rnd);
-
-  int inputs[] = { 12, 103, 42 };
-  Program prog = {
-    .numInputs = 3,
-    .numOutputs = 2,
-    .src = src,
-    .inputs = inputs
-  };
-
-  int *outputs = executeProgram(prog);
-
-  printf("{%d,%d,%d} -> {%d,%d}\n", inputs[0], inputs[1], inputs[2], outputs[0], outputs[1]);
-
-  FILE *file = fopen(outputFile, "w");
-  assert(file);
-
-  fputs(src, file);
-
-  fclose(file);
-
-  return 0;
-}
-#endif
-
-#if 1
 /* Generate data set */
 int main()
 {
@@ -678,7 +557,7 @@ int main()
     fs::create_directory(fs::path("dataset"));
   }
 
-  uint32_t numTrainingExamples = 1000;
+  uint32_t numTrainingExamples = 1;
 
   /* Initialize random number generator. */
   Rand rnd = {
@@ -695,15 +574,14 @@ int main()
     uint32_t numOutputs = rnd.next(1, numInputs+1);
 
     /* Generate the program */
-    char *src = makeProgram(numInputs, rnd);
+    float *src = makeProgram(numInputs, rnd);
 
-    { /* Save the program to a file. */
+		{ /* Save the program to a file. */
       std::string programFileName = "src-" + std::to_string(i) + ".asm";
-      std::fstream stream(fs::path("dataset") / programFileName, std::ios::out);
+      std::fstream stream(fs::path("dataset") / programFileName, std::ios::binary | std::ios::out);
       assert(stream.is_open());
-      stream << (const char *)src;
-      stream.close();
-    }
+			stream.write(reinterpret_cast<const char *>(src), PROGRAM_SIZE_BYTES);
+		}
 
     Program prog = {
       .numInputs = numInputs,
@@ -718,7 +596,7 @@ int main()
     assert(streamIO.is_open());
 
     /* Generate the input output pairs. */
-    for (int ioPair = 0; ioPair < 1000; ++ioPair) {
+    for (int ioPair = 0; ioPair < 1; ++ioPair) {
       int inputs[kMaxInputs] = {};
       for (int j = 0; j < kMaxInputs; ++j) {
         inputs[j] = (rnd.next() % 2048) - 1024;
@@ -757,4 +635,3 @@ int main()
 
   metadataStream.close();
 }
-#endif

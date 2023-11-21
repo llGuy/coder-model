@@ -2,3 +2,4 @@ gen
 dataset
 gen.dSYM
 test.asm
+*.swp
