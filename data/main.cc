@@ -43,6 +43,11 @@ struct OperandData {
    * if op == Register: value takes on [0, numRegisters]
    * if op == Literal: value takes on any value */
   int value;
+
+  bool operator==(const OperandData &other)
+  {
+    return op == other.op && value == other.value;
+  }
 };
 
 struct OperationData {
@@ -175,8 +180,24 @@ reject:
   return {Operand::Input, (int)inputIdx};
 }
 
-OperandData generateRValue(ProgramState &state,
-                           Rand &rnd)
+/* For branch operations. Don't want to branch off of a register
+ * which hasn't been written to yet. */
+OperandData generateRestrictedLValue(ProgramState &state,
+                                     Rand &rnd)
+{
+  if (rnd.next() % 2 == 0 && state.usedRegisters) {
+    uint32_t regIdx = rnd.next() % state.usedRegisters;
+    return { Operand::Register, (int)regIdx };
+  }
+
+  uint32_t inputIdx = rnd.next() % state.numInputs;
+  return {Operand::Input, (int)inputIdx};
+}
+
+OperandData generateRValueImpl(ProgramState &state,
+                               Operation opType,
+                               const OperandData &left,
+                               Rand &rnd)
 {
   Operand operandType = (Operand)(rnd.next() % kNumOperands);
 
@@ -192,6 +213,32 @@ OperandData generateRValue(ProgramState &state,
   else {
     return {operandType, (int)(rnd.next() % kLiteralRange - kLiteralOffset)};
   }
+}
+
+OperandData generateRValue(ProgramState &state,
+                           Operation opType,
+                           const OperandData &left,
+                           Rand &rnd)
+{
+  OperandData tmp = generateRValueImpl(state, opType, left, rnd);
+
+  if (opType == Operation::Mul && tmp.op == Operand::Literal && tmp.value == 0) {
+    return generateRValue(state, opType, left, rnd);
+  }
+
+  if (opType == Operation::Div && tmp.op == Operand::Literal && tmp.value == 0) {
+    return generateRValue(state, opType, left, rnd);
+  }
+
+  if (opType == Operation::Sub && tmp == left) {
+    return generateRValue(state, opType, left, rnd);
+  }
+
+  if (opType == Operation::Mov && tmp == left) {
+    return generateRValue(state, opType, left, rnd);
+  }
+
+  return tmp;
 }
 
 Operation generateOperation(Rand &rnd)
@@ -287,7 +334,7 @@ char *pushInstruction(ProgramState &state,
     case Operation::Mul: case Operation::Div:
     case Operation::Mov: {
       opData.left = generateLValue(state, rnd, instruction);
-      opData.right = generateRValue(state, rnd);
+      opData.right = generateRValue(state, instruction, opData.left, rnd);
     } break;
 		default: {} break;
   }
