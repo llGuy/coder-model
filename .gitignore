@@ -1,7 +1,7 @@
-dataset
-gen.dSYM
-test.asm
+data/dataset
+data/gen.dSYM
 __pycache__
 *.swp
 .cache
 compile_commands.json
+data/gen
