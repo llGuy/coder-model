@@ -100,7 +100,7 @@ inline constexpr uint32_t kNumOperands =
   (uint32_t)Operand::None;
 
 inline constexpr uint32_t kLiteralRange = 20;
-inline constexpr uint32_t kLiteralOffset = 10;
+inline constexpr uint32_t kLiteralOffset = 0;
 
 char *serializeOperandData(const OperandData &operand, char *mem)
 {
