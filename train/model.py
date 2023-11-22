@@ -57,14 +57,6 @@ def train(model, dataloader):
     io_pairs_batch, prog_labels_batch = next(iter(dataloader))
     N, _ = io_pairs_batch.shape
 
-    print(io_pairs_batch.size())
-    print(prog_labels_batch[0].size())
-    print(prog_labels_batch[1].size())
-    print(prog_labels_batch[2].size())
-
-
-    return
-
     for i in range(N):
         optimizer.zero_grad()
         out1, out2, out3 = model(io_pairs_batch[i])

@@ -76,7 +76,7 @@ class ProgDataset(Dataset):
                 data[1].append(lval_probs)
                 data[2].append(rval_probs)
 
-        data = (torch.from_numpy(np.array(data[i])) for i in range(len(dims)))
+        data = tuple(torch.from_numpy(np.array(data[i])) for i in range(len(dims)))
         return data
 
     # load io-pairs for a given program.
