@@ -26,8 +26,6 @@ class BaselineNet(nn.Module):
 
     # Returns a tuple with the outputs from the 3 branches
     def forward(self, x):
-        print(x)
-
         # First hidden layer
         x = self.fc1(x)
         x = F.relu(x)

@@ -1,5 +1,11 @@
 # CS229 Final Project
 
+# For training, run this:
+`python3 main.py --run=train --lr=0.00001 --rho=0.5`
+
+# For testing the model, run this:
+`python3 main.py --run=test --model=path/to/model/file --example=42`
+
 ## Data formats:
 
 ### Network output data format:
