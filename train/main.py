@@ -3,6 +3,7 @@ import data
 
 from tqdm import tqdm
 
+# exported to data.py
 NUM_EXAMPLES = 1000
 
 def train():

@@ -1,39 +1,63 @@
+"""
+This file encapsulates the process of pulling data from storage and exposing it
+to the training loop. The Dataset is responsible for processing single instances of 
+data. The DataLoader is responsible for collecting multiple data instances, and
+returning them in a batch.
+
+https://pytorch.org/tutorials/beginner/introyt/trainingyt.htmlo
+
+Creating a custom dataset and dataloader object for your data:
+
+https://pytorch.org/tutorials/beginner/basics/data_tutorial.html
+"""
+
 import torch
+from torch.utils.data import Dataset
+
 import numpy as np
+import struct
+
+import main
 
 # Dimensions of the input to the model (1000 IO pairs)
 INPUT_DIM = 1000 * 6
 
 INSTRUCTIONS_PER_PROGRAM = 30
 
+IO_PAIRS_PER_PROGRAM = 1000
+INTS_PER_IO_PAIR = 6
+
 # Baseline model dimensions
 BRANCH1_OUTPUTS = INSTRUCTIONS_PER_PROGRAM * 5
 BRANCH2_OUTPUTS = INSTRUCTIONS_PER_PROGRAM * 6
 BRANCH3_OUTPUTS = INSTRUCTIONS_PER_PROGRAM * 26
 
-class Dataset:
-    def __init__(
-        self,
-        data_folder_path: str,
-        num_examples: int
-    ):
-        self.folder_path = data_folder_path
-        self.num_examples = num_examples
 
-    # Load IO pair.
-    def load_io_pair(self, idx: int):
-        io_pair_path = self.folder_path + "/io-pair-" + str(idx) + ".txt"
+# Custom Dataset object extending pytorch Dataset.
+# This class is not responsible for datachaching or batch ops.
+class ProgDataset(Dataset):
+
+    # Init loads the entire dataset into memory
+    def __init__(
+        self, 
+        dataset_path: str,
+    ):
+        self.dataset_path = dataset_path
+        self.num_examples = main.NUM_EXAMPLES
+
+    def __len__(self):
+        return self.num_examples
 
     # Load label program.
     def load_label(self, idx: int):
-        label_path = self.folder_path + "/src-" + str(idx) + ".asm"
+        label_path = self.dataset_path + "/src-" + str(idx)
 
         dims = [5, 6, 26]
 
         # Parse data into lists, which can be formatted into tensors.
         data = [[] for _ in dims]
 
-        with open(prog_binary, 'rb') as f:
+        with open(label_path, 'rb') as f:
 
             for i in range(INSTRUCTIONS_PER_PROGRAM):
 
@@ -50,12 +74,30 @@ class Dataset:
                 data[2].append(rval_probs)
 
         data = [torch.from_numpy(np.array(data[i])) for i in range(len(dims))]
+        return data
+
+    # load io-pairs for a given program.
+    def load_io_pairs(self, idx: int):
+
+        io_pair_path = self.dataset_path + "/io-pair-" + str(idx)
+        output_tensor = np.empty(2 + IO_PAIRS_PER_PROGRAM * INTS_PER_IO_PAIR, dtype=np.int32)
+
+        with open(io_pair_path, 'rb') as f:
+            output_tensor[0] = int.from_bytes(f.read(1), "little", signed=False)
+            output_tensor[1] = int.from_bytes(f.read(1), "little", signed=False)
+
+            for i in range(IO_PAIRS_PER_PROGRAM * INTS_PER_IO_PAIR):
+                output_tensor[2 + i] = int.from_bytes(f.read(4), "little", signed=True)
+
+        return torch.from_numpy(output_tensor)
+
+    def __getitem__(self, idx):
+        return self.load_io_pairs(idx), self.load_label(idx)
+        
     
 if __name__ == "__main__":
-    obj = Dataset()
-    obj.load_label('../data/dataset/src-0.asm')
-
-
+    obj = ProgDataset('../data/dataset')
+    obj.__getitem__(0)
 
 
 class BatchedDataLoader:

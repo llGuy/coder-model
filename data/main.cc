@@ -12,6 +12,7 @@
 inline constexpr uint32_t kMaxProgramSize = 2048;
 inline constexpr uint32_t kNumRegisters = 3;
 inline constexpr uint32_t kMaxInputs = 3;
+inline constexpr uint32_t kMaxOutputs = 3;
 
 // 30 instructions, each with 5-float, 6-float, and 26-float components.
 #define PROGRAM_NUM_INSTR 30
@@ -459,10 +460,9 @@ fill_instr:
 	op.left = left;
 	op.right = right;
 
-#if 1 // !!!!!!!!!!!Uncomment this to dump the probability vectors and the instructions
+#if 0 // !!!!!!!!!!!Uncomment this to dump the probability vectors and the instructions
 			// they correspond to!!!!!!!!!!!!!
 	// Compare generated instruction with probability arrays.
-	/*
 	printf("read arrays:\n");
 	printf("instr probs: ");
 	for (int i = 0; i < INSTR_PROB_VECTOR_LEN; ++i)
@@ -482,7 +482,6 @@ fill_instr:
 		std::cout << std::fixed << std::setprecision(2) << rval_probs[i] << " ";
 	}
 	std::cout << std::endl;
-	*/
 
   // Serialize instruction as string.
 	char instr[50];
@@ -602,18 +601,15 @@ int main()
     .dist = std::uniform_int_distribution<>(0, 1024)
   };
 
-  std::fstream metadataStream(fs::path("dataset") / "metadata.txt", std::ios::out);
-  assert(metadataStream.is_open());
-
   for (int i = 0; i < numTrainingExamples; ++i) {
-    uint32_t numInputs = rnd.next(1, kMaxInputs+1);
-    uint32_t numOutputs = rnd.next(1, numInputs+1);
+    uint8_t numInputs = (uint8_t) rnd.next(1, kMaxInputs+1);
+    uint8_t numOutputs = (uint8_t) rnd.next(1, numInputs+1);
 
     /* Generate the program */
     float *src = makeProgram(numInputs, rnd);
 
 		{ /* Save the program to a file. */
-      std::string programFileName = "src-" + std::to_string(i) + ".asm";
+      std::string programFileName = "src-" + std::to_string(i);
       std::fstream stream(fs::path("dataset") / programFileName, std::ios::binary | std::ios::out);
       assert(stream.is_open());
 			stream.write(reinterpret_cast<const char *>(src), PROGRAM_SIZE_BYTES);
@@ -627,12 +623,15 @@ int main()
     };
 
     /* Write the input output pair file. */
-    std::string ioFileName = "io-pair-" + std::to_string(i) + ".txt";
-    std::fstream streamIO(fs::path("dataset") / ioFileName, std::ios::out);
-    assert(streamIO.is_open());
+    std::string ioFileName = "io-pair-" + std::to_string(i);
+    std::fstream stream(fs::path("dataset") / ioFileName, std::ios::binary | std::ios::out);
+    assert(stream.is_open());
+
+		stream.write(reinterpret_cast<char const *>(&numInputs), sizeof(uint8_t));
+		stream.write(reinterpret_cast<char const *>(&numOutputs), sizeof(uint8_t));
 
     /* Generate the input output pairs. */
-    for (int ioPair = 0; ioPair < 1; ++ioPair) {
+    for (int ioPair = 0; ioPair < 1000; ++ioPair) {
       int inputs[kMaxInputs] = {};
       for (int j = 0; j < kMaxInputs; ++j) {
         inputs[j] = (rnd.next() % 2048) - 1024;
@@ -643,31 +642,22 @@ int main()
       int *outputs = executeProgram(prog);
 
       /* Write the input output pair to a file. */
-      std::string inputString = "{";
-      for (int j = 0; j < numInputs; ++j) {
-        inputString += std::to_string(inputs[j]);
-        if (j < numInputs-1)
-          inputString += ',';
-      }
-      inputString += "}->{";
-      for (int j = 0; j < numOutputs; ++j) {
-        inputString += std::to_string(outputs[j]);
-        if (j < numOutputs-1)
-          inputString += ',';
-      }
-      inputString += "}\n";
+			signed int filler = 0xBAD;
+      for (int j = 0; j < numInputs; ++j) 
+			{ stream.write(reinterpret_cast<char const *>(inputs + j), sizeof(int)); }
 
-      streamIO << inputString;
+			for (int j = 0; j < kMaxInputs - numInputs; ++j)
+			{ stream.write(reinterpret_cast<char const *>(&filler), sizeof(int)); }
+
+      for (int j = 0; j < numOutputs; ++j)
+			{ stream.write(reinterpret_cast<char const *>(outputs + j), sizeof(int)); }
+
+			for (int j = 0; j < kMaxOutputs - numOutputs; ++j)
+			{ stream.write(reinterpret_cast<char const *>(&filler), sizeof(int)); }
 
       free(outputs);
     }
 
-    streamIO.close();
-
     free(src);
-
-    metadataStream << numInputs << "->" << numOutputs << "\n";
   }
-
-  metadataStream.close();
 }
