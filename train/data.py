@@ -20,8 +20,10 @@ import struct
 
 import main
 
+NUM_EXAMPLES = 2000
+
 # Dimensions of the input to the model (1000 IO pairs)
-INPUT_DIM = 1000 * 6
+INPUT_DIM = 1000 * 6 + 2
 
 INSTRUCTIONS_PER_PROGRAM = 30
 
@@ -44,7 +46,7 @@ class ProgDataset(Dataset):
         dataset_path: str,
     ):
         self.dataset_path = dataset_path
-        self.num_examples = main.NUM_EXAMPLES
+        self.num_examples = NUM_EXAMPLES
 
     def __len__(self):
         return self.num_examples
@@ -74,7 +76,7 @@ class ProgDataset(Dataset):
                 data[1].append(lval_probs)
                 data[2].append(rval_probs)
 
-        data = [torch.from_numpy(np.array(data[i])) for i in range(len(dims))]
+        data = (torch.from_numpy(np.array(data[i])) for i in range(len(dims)))
         return data
 
     # load io-pairs for a given program.

@@ -1,21 +1,14 @@
 import model
 import data
 
-from tqdm import tqdm
+def main():
+    trainset = data.ProgDataset('../data/dataset')
+    dl = data.DataLoader(trainset, batch_size=50, shuffle=True)
 
-# exported to data.py
-NUM_EXAMPLES = 2000
+    # bn = model.BaselineNet()
+    # model.train(bn, dl)
 
-def train():
-    train_data = data.Dataset("../data/dataset", NUM_EXAMPLES)
-    train_loader = data.BatchedDataLoader(train_data, 100, False)
-
-    net = model.BaselineNet()
-
-    for batch_idx, (inputs, labels) in enumerate(tqdm(train_loader)):
-        # Do forward pass, backprop and update weights.
-        pass
+    pass
 
 if __name__ == "__main__":
-  print("Hello world")
-  train()
+    main()
