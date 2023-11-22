@@ -4,15 +4,16 @@ to the training loop. The Dataset is responsible for processing single instances
 data. The DataLoader is responsible for collecting multiple data instances, and
 returning them in a batch.
 
-https://pytorch.org/tutorials/beginner/introyt/trainingyt.htmlo
-
-Creating a custom dataset and dataloader object for your data:
-
+Creating a custom dataset object for your data, and using the torch dataloader:
 https://pytorch.org/tutorials/beginner/basics/data_tutorial.html
+
+More informaiton about training with pytorch:
+https://pytorch.org/tutorials/beginner/introyt/trainingyt.htmlo
 """
 
 import torch
 from torch.utils.data import Dataset
+from torch.utils.data import DataLoader
 
 import numpy as np
 import struct
@@ -94,49 +95,19 @@ class ProgDataset(Dataset):
     def __getitem__(self, idx):
         return self.load_io_pairs(idx), self.load_label(idx)
         
-    
+
+# Example usage.
 if __name__ == "__main__":
-    obj = ProgDataset('../data/dataset')
-    obj.__getitem__(0)
 
+    # Create dataset to traverse.
+    dataset_before_train_val_split = ProgDataset('../data/dataset')
 
-class BatchedDataLoader:
+    # Instantiate dataloader.
+    dl = DataLoader(dataset_before_train_val_split, batch_size=100, shuffle=True)
 
-    # Define the splits by a dictionary with entries for 'train',
-    # 'validation' and 'test'. Need to associate these with their
-    # sizes.
-    def __init__(
-        self,
-        data_set: Dataset,
-        batch_size: int,
-        shuffle: bool
-    ):
-        self.data_set = data_set
-        self.batch_size = batch_size
+    # Use the dataloader to iterate through the data.
+    io_pairs, prog_labels = next(iter(dl))
 
-        self.current = 0
-        self.indices = None
+    print(f'io_pairs batch shape: {io_pairs.size()}')
+    print(f'prob_labels batch shape: {prog_labels[0].size()}, {prog_labels[1].size()}, {prog_labels[2].size()}')
 
-        if shuffle:
-          # TODO: implement shuffle
-          pass
-        else:
-          self.indices = torch.arange(0, self.data_set.num_examples, 1)
-
-    def __len__(self):
-        return self.data_set.num_examples
-
-    def __getitem__(self, idx):
-        io_pairs = []
-        labels = []
-        for i in range(self.batch_size):
-            example_idx = self.indices[i + idx * self.batch_size]
-            current_io_pair = self.data_set.load_io_pair(example_idx)
-            current_label = self.data_set.load_label(example_idx)
-            io_pairs.append(current_io_pair)
-            labels.append(current_label)
-
-        io_pairs_full = torch.cat(io_pairs, dim=0)
-        labels_full = torch.cat(labels, dim=0)
-
-        return io_pairs_full, labels_full

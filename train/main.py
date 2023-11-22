@@ -4,7 +4,7 @@ import data
 from tqdm import tqdm
 
 # exported to data.py
-NUM_EXAMPLES = 1000
+NUM_EXAMPLES = 2000
 
 def train():
     train_data = data.Dataset("../data/dataset", NUM_EXAMPLES)

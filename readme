@@ -22,3 +22,10 @@ The io-pairs file has the following format:
 single io-vector:
 ```[uint32][uint32][uint32][uint32][uint32][uint32]``` - in0 in1 in2 out0 out1 out2
 x1000
+
+
+## TODO
+
+I have a hunch we need to impose more rules on asm generation.
+1. Do not allow moving literals into input registers.
+2. Do not allow moving from one input register to another.

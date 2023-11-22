@@ -592,7 +592,7 @@ int main()
     fs::create_directory(fs::path("dataset"));
   }
 
-  uint32_t numTrainingExamples = 1;
+  uint32_t numTrainingExamples = 2000;
 
   /* Initialize random number generator. */
   Rand rnd = {
