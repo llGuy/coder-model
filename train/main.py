@@ -1,19 +1,43 @@
+import torch
+from torch.utils.data import DataLoader
+
 import model
 import data
 
-from tqdm import tqdm
+# Given a batch, perform SGD.
+def train(model, dataloader):
+    optimizer = torch.optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-NUM_EXAMPLES = 1000
+    loss_func = torch.nn.L1Loss()
 
-def train():
-  train_data = data.Dataset("../data/dataset", NUM_EXAMPLES)
-  train_loader = data.BatchedDataLoader(train_data, 100, False)
+    for b_idx, (b_inputs, b_labels) in enumerate(dataloader):
+        optimizer.zero_grad()
+        out1, out2, out3 = model(b_inputs)
 
-  net = model.BaselineNet()
+        # Get loss and gradients for each branch.
+        loss1 = loss_func(out1, b_labels[0])
 
-  for batch_idx, (inputs, labels) in enumerate(tqdm(train_loader)):
-    # Do forward pass, backprop and update weights
+        loss2 = loss_func(out2, b_labels[1])
+
+        loss3 = loss_func(out3, b_labels[2])
+
+        total_loss = loss1 + loss2 + loss3
+        total_loss.backward()
+
+        print(total_loss.item())
+
+        # Adjust learning weights.
+        optimizer.step()
+
+
+def main():
+    trainset = data.ProgDataset('../data/dataset')
+    dl = DataLoader(trainset, batch_size=50, shuffle=True)
+
+    bn = model.BaselineNet()
+    train(bn, dl)
+
     pass
 
 if __name__ == "__main__":
-  train()
+    main()

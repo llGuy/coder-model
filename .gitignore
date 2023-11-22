@@ -5,3 +5,4 @@ __pycache__
 .cache
 compile_commands.json
 data/gen
+.abbrv

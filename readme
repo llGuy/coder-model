@@ -1,16 +1,31 @@
 # CS229 Final Project
 
-Neural Network data format:
+## Data formats:
 
-30 entries, 
+### Network output data format:
 
-	 entry format:
-	 	5-vector instruction probabilities
-		6-vector lvalue probabilities
-		26-vector rvalue probabilities
-		a norm zero vector corresponds to a nop.
+30 ordered entries each of the following format:
+```[5-Float32]``` - A probability vector denoting probabilities for each instruction at this entry.
+```[6-Float32]``` - A probability vector denoting probabilities for each of the 6 possible lvalues.
+```[26-Float32]``` - A probability vector denoting probabilities for each of the 6 register rvalues and 20 literal rvalues.
 
-Test the following arch:
+A norm zero output vector corresponds to a nop instruction, thus any output can have less than 30 functional instructions.
 
-	relu relu branch for each section
-	relu relu massive hidden layer
+### Network input data format:
+
+1000 input output pairs. There may be 0-3 inputs and 0-3 outputs.
+The io-pairs file has the following format:
+
+```[uint8]``` - number of inputs
+```[uint8]``` - number of outputs
+
+single io-vector:
+```[uint32][uint32][uint32][uint32][uint32][uint32]``` - in0 in1 in2 out0 out1 out2
+x1000
+
+
+## TODO
+
+I have a hunch we need to impose more rules on asm generation.
+1. Do not allow moving literals into input registers.
+2. Do not allow moving from one input register to another.
