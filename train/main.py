@@ -9,6 +9,8 @@ import argparse
 NUM_TRAIN_EXAMPLES = 10000
 NUM_VAL_EXAMPLES = 100
 
+
+
 def get_val_loss(model, dl_val, loss_func):
     running_loss = 0
 
@@ -25,6 +27,8 @@ def get_val_loss(model, dl_val, loss_func):
 
             running_loss += total_loss.item()
     return running_loss
+
+
 
 # Given a batch, perform SGD.
 def train(model, dl_train, dl_val):
@@ -54,8 +58,12 @@ def train(model, dl_train, dl_val):
 
             print("Train loss: ", total_loss.item(), " \t|\t Validation loss: ", val_loss)
 
+
+
 def model_path(lr, rho):
     return 'models/model-lr' + str(lr) + '-rho' + str(rho)
+
+
 
 def train_main(lr, rho):
     trainset = data.ProgDataset('../data/dataset/train', NUM_TRAIN_EXAMPLES)
@@ -71,10 +79,16 @@ def train_main(lr, rho):
     torch.save(bn, model_path(lr, rho))
 
 
+
 def test_main(model_path, example_idx):
+    operations = [ 'add', 'sub', 'mul', 'div', 'mov' ]
+    inputs = [ 'x0', 'x1', 'x2' ]
+    registers = [ 'r0', 'r1', 'r2' ]
+
     dataset = data.ProgDataset('../data/dataset/validation', NUM_VAL_EXAMPLES)
 
     io_pairs = dataset.load_io_pairs(example_idx)
+    print(io_pairs.shape)
 
     # Test output of the model
     model = torch.load(model_path)
@@ -84,9 +98,33 @@ def test_main(model_path, example_idx):
     with torch.no_grad():
         out1, out2, out3 = model(io_pairs)
 
-        print(out1.shape)
-        print(out2.shape)
-        print(out3.shape)
+        for i in range(data.INSTRUCTIONS_PER_PROGRAM):
+            instruction_probs = out1[i]
+            lvalue_probs = out2[i]
+            rvalue_probs = out3[i]
+
+            op_idx = int(torch.argmax(instruction_probs))
+            lvalue_idx = int(torch.argmax(lvalue_probs))
+            rvalue_idx = int(torch.argmax(rvalue_probs))
+
+            instruction_str = operations[op_idx]
+            lvalue_str = None
+            rvalue_str = None
+
+            if lvalue_idx < 3:
+                lvalue_str = inputs[lvalue_idx]
+            else:
+                lvalue_str = registers[lvalue_idx - 3]
+
+            if rvalue_idx < 3:
+                rvalue_str = inputs[rvalue_idx];
+            elif rvalue_idx < 6:
+                rvalue_str = registers[rvalue_idx - 3]
+            else:
+                rvalue_str = str(rvalue_idx - 6)
+
+            print(instruction_str, lvalue_str, rvalue_str)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
