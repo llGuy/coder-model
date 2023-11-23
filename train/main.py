@@ -30,23 +30,25 @@ def get_val_loss(model, dl_val, loss_func):
 
 
 
-# Given a batch, perform SGD.
-def train(model, dl_train, dl_val):
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.00001, momentum=0.5)
+# Perform SGD 5 times on 5 random batches.
+def train(model, dl_train, dl_val, lr=0.00001, momentum=0.5):
+    optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
     loss_func = torch.nn.CrossEntropyLoss()
 
     for _ in range(5):
-        for b_idx, (b_inputs, b_labels) in enumerate(dl_train):
+        batched_io_pairs, batched_labels = next(iter(dl_train))
+        N, _ = batched_io_pairs.size()
+        for i in range(N):
             model.train()
 
             optimizer.zero_grad()
-            out1, out2, out3 = model(b_inputs)
+            out1, out2, out3 = model(batched_io_pairs[i])
 
             # Get loss and gradients for each branch.
-            loss1 = loss_func(out1, b_labels[0])
-            loss2 = loss_func(out2, b_labels[1])
-            loss3 = loss_func(out3, b_labels[2])
+            loss1 = loss_func(out1, batched_labels[0][i])
+            loss2 = loss_func(out2, batched_labels[1][i])
+            loss3 = loss_func(out3, batched_labels[2][i])
 
             total_loss = loss1 + loss2 + loss3
             total_loss.backward()
@@ -64,20 +66,25 @@ def model_path(lr, rho):
     return 'models/model-lr' + str(lr) + '-rho' + str(rho)
 
 
-
 def train_main(lr, rho):
     trainset = data.ProgDataset('../data/dataset/train', NUM_TRAIN_EXAMPLES)
-    dl_train = DataLoader(trainset, batch_size=50, shuffle=True)
+    dl_train = DataLoader(trainset, batch_size=15, shuffle=True)
 
     valset = data.ProgDataset('../data/dataset/validation', NUM_VAL_EXAMPLES)
     dl_val = DataLoader(valset, batch_size=NUM_VAL_EXAMPLES, shuffle=False)
 
     bn = model.BaselineNet()
 
-    train(bn, dl_train, dl_val)
+    if lr is None and rho is None:
+        train(bn, dl_train, dl_val)
+    elif lr is None:
+        train(bn, dl_train, dl_val, momentum=rho)
+    elif rho is None:
+        train(bn, dl_train, dl_val, lr=lr)
+    else:
+        train(bn, dl_train, dl_val, lr=lr, momentum=rho)
 
     torch.save(bn, model_path(lr, rho))
-
 
 
 def translate_probabilities(out1, out2, out3):
