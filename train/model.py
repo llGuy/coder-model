@@ -17,12 +17,12 @@ class BaselineNet(nn.Module):
 
         # Fully connected hidden layers
         self.fc1 = nn.Linear(data.INPUT_DIM, 512)
-        self.fc2 = nn.Linear(512, 128)
+        self.fc2 = nn.Linear(512, 64)
 
         # Then, we go through the branches
-        self.br1 = nn.Linear(128, data.BRANCH1_OUTPUTS)
-        self.br2 = nn.Linear(128, data.BRANCH2_OUTPUTS)
-        self.br3 = nn.Linear(128, data.BRANCH3_OUTPUTS)
+        self.br1 = nn.Linear(64, data.BRANCH1_OUTPUTS)
+        self.br2 = nn.Linear(64, data.BRANCH2_OUTPUTS)
+        self.br3 = nn.Linear(64, data.BRANCH3_OUTPUTS)
 
     # Returns a tuple with the outputs from the 3 branches
     def forward(self, x):

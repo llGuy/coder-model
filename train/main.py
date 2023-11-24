@@ -10,7 +10,6 @@ NUM_TRAIN_EXAMPLES = 10000
 NUM_VAL_EXAMPLES = 100
 
 
-
 def get_val_loss(model, dl_val, loss_func):
     running_loss = 0
 
@@ -31,12 +30,13 @@ def get_val_loss(model, dl_val, loss_func):
 
 
 # Perform SGD 5 times on 5 random batches.
-def train(model, dl_train, dl_val, lr=0.00001, momentum=0.5):
+def train(model, dl_train, dl_val, lr, momentum, epoch):
     optimizer = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
 
     loss_func = torch.nn.CrossEntropyLoss()
+    # loss_func = torch.nn.MSELoss()
 
-    for _ in range(5):
+    for _ in range(epoch):
         batched_io_pairs, batched_labels = next(iter(dl_train))
         N, _ = batched_io_pairs.size()
         for i in range(N):
@@ -66,24 +66,26 @@ def model_path(lr, rho):
     return 'models/model-lr' + str(lr) + '-rho' + str(rho)
 
 
-def train_main(lr, rho):
+def train_main(lr, rho, batch_size, epoch):
+
+    if lr is None:
+        lr = 0.000001
+    if rho is None:
+        rho = 0.9
+    if batch_size is None:
+        batch_size = 50
+    if epoch is None:
+        epoch = 10
+
     trainset = data.ProgDataset('../data/dataset/train', NUM_TRAIN_EXAMPLES)
-    dl_train = DataLoader(trainset, batch_size=15, shuffle=True)
+    dl_train = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
     valset = data.ProgDataset('../data/dataset/validation', NUM_VAL_EXAMPLES)
     dl_val = DataLoader(valset, batch_size=NUM_VAL_EXAMPLES, shuffle=False)
 
     bn = model.BaselineNet()
 
-    if lr is None and rho is None:
-        train(bn, dl_train, dl_val)
-    elif lr is None:
-        train(bn, dl_train, dl_val, momentum=rho)
-    elif rho is None:
-        train(bn, dl_train, dl_val, lr=lr)
-    else:
-        train(bn, dl_train, dl_val, lr=lr, momentum=rho)
-
+    train(bn, dl_train, dl_val, lr, rho, epoch)
     torch.save(bn, model_path(lr, rho))
 
 
@@ -152,6 +154,8 @@ if __name__ == "__main__":
     # If run==train
     parser.add_argument('--lr', type=float, required=False)
     parser.add_argument('--rho', type=float, required=False)
+    parser.add_argument('--epoch', type=int, required=False)
+    parser.add_argument('--batch_size', type=int, required=False)
 
     # If run==test
     parser.add_argument('--model', type=str, required=False)
@@ -159,7 +163,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.run == 'train':
-        train_main(args.lr, args.rho)
+        train_main(args.lr, args.rho, args.batch_size, args.epoch)
     elif args.run == 'test':
         test_main(args.model, args.example)
     else:
