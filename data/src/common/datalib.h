@@ -22,45 +22,45 @@ inline constexpr uint32_t kLiteralOffset = 0;
 
 enum class Operation
 {
-	Add,
-	Sub,
-	Mul,
-	Div,
-	Mov,
-	None, // None must go before Nop since Nop isn't an explicit instruction.
-	Nop
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mov,
+    None, // None must go before Nop since Nop isn't an explicit instruction.
+    Nop
 };
 inline constexpr uint32_t kNumOperations = (uint32_t)Operation::None;
 
 enum class Operand
 {
-	Input,
-	Literal,
-	Register,
-	None
+    Input,
+    Literal,
+    Register,
+    None
 };
 inline constexpr uint32_t kNumOperands = (uint32_t)Operand::None;
 
 struct OperandData
 {
-	Operand op;
+    Operand op;
 
-	/* if op == Input: value takes on [0, numInputs]
-	 * if op == Register: value takes on [0, numRegisters]
-	 * if op == Literal: value takes on any value */
-	int value;
+    /* if op == Input: value takes on [0, numInputs]
+     * if op == Register: value takes on [0, numRegisters]
+     * if op == Literal: value takes on any value */
+    int value;
 
-	bool operator==(const OperandData &other)
-	{
-		return op == other.op && value == other.value;
-	}
+    bool operator==(const OperandData &other)
+    {
+        return op == other.op && value == other.value;
+    }
 };
 
 struct OperationData
 {
-	Operation op;
-	OperandData left;
-	OperandData right;
+    Operation op;
+    OperandData left;
+    OperandData right;
 };
 extern char const *kOperationNames[];
 
