@@ -9,9 +9,6 @@ import argparse
 import json
 import datetime
 
-NUM_TRAIN_EXAMPLES = 1000
-NUM_VAL_EXAMPLES = 100
-
 
 def get_val_loss(model, dl_val, loss_func):
     running_loss = 0

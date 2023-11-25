@@ -53,9 +53,8 @@ class ConvolutionNet(nn.Module):
         super(ConvolutionNet, self).__init__()
 
         # Convolution nets first
-        self.cnn1 = nn.Conv1d(data.INPUT_DIM, 512, 16)
-        self.cnn2 = nn.Conv1d(512, 256, 8)
-        self.fc = nn.Linear(256, 64, 8)
+        self.cnn1 = nn.Conv1d(1, 1, 12)
+        self.fc = nn.Linear(1 * (1))
 
         # Then, we go through the branches
         self.br1 = nn.Linear(64, data.BRANCH1_OUTPUTS)
@@ -63,6 +62,8 @@ class ConvolutionNet(nn.Module):
         self.br3 = nn.Linear(64, data.BRANCH3_OUTPUTS)
 
     def forward(self, x):
+        print(x.shape)
+
         # First conv hidden layer
         x = self.cnn1(x)
         x = F.relu(x)
