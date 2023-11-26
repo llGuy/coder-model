@@ -5,6 +5,7 @@ import model
 import data
 
 import argparse
+import json
 
 def translate_probabilities(out1, out2, out3):
     operations = [ 'add', 'sub', 'mul', 'div', 'mov' ]
@@ -14,9 +15,9 @@ def translate_probabilities(out1, out2, out3):
     output = ''
 
     for i in range(data.INSTRUCTIONS_PER_PROGRAM):
-        instruction_probs = out1[i]
-        lvalue_probs = out2[i]
-        rvalue_probs = out3[i]
+        instruction_probs = out1[i] if len(out1.shape) == 2 else out1[0][i]
+        lvalue_probs = out2[i] if len(out2.shape) == 2 else out2[0][i]
+        rvalue_probs = out3[i] if len(out3.shape) == 2 else out3[0][i]
 
         op_idx = int(torch.argmax(instruction_probs))
         lvalue_idx = int(torch.argmax(lvalue_probs))
@@ -45,9 +46,19 @@ def translate_probabilities(out1, out2, out3):
 
 
 def test_main(model_path, example_idx):
-    dataset = data.ProgDataset('../data/dataset/validation', data.NUM_VAL_EXAMPLES)
+    group_ints = False
+    with open(model_path + '.json', "r") as file:
+        d = json.load(file)
+        group_ints = (d["model_type"] == "rnn1")
+
+    print(group_ints)
+    dataset = data.ProgDataset('../data/dataset/validation', data.NUM_VAL_EXAMPLES, group_ints)
 
     io_pairs = dataset.load_io_pairs(example_idx)
+
+    if len(io_pairs.shape) == 2:
+        io_pairs = io_pairs.view(1, io_pairs.shape[0], io_pairs.shape[1])
+
     label1, label2, label3 = dataset.load_label(example_idx)
 
     # Test output of the model
@@ -57,6 +68,7 @@ def test_main(model_path, example_idx):
     model.eval()
     with torch.no_grad():
         out1, out2, out3 = model(io_pairs)
+
         print("Predicted:")
         print(translate_probabilities(out1, out2, out3))
 

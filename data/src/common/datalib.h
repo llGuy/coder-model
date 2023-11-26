@@ -20,8 +20,7 @@ inline constexpr uint32_t kLiteralOffset = 0;
 #define RVAL_PROB_VECOTR_LEN (kMaxInputs + kNumRegisters + kLiteralRange)
 
 
-enum class Operation
-{
+enum class Operation {
     Add,
     Sub,
     Mul,
@@ -30,19 +29,19 @@ enum class Operation
     None, // None must go before Nop since Nop isn't an explicit instruction.
     Nop
 };
+
 inline constexpr uint32_t kNumOperations = (uint32_t)Operation::None;
 
-enum class Operand
-{
+enum class Operand {
     Input,
     Literal,
     Register,
     None
 };
+
 inline constexpr uint32_t kNumOperands = (uint32_t)Operand::None;
 
-struct OperandData
-{
+struct OperandData {
     Operand op;
 
     /* if op == Input: value takes on [0, numInputs]
@@ -56,12 +55,12 @@ struct OperandData
     }
 };
 
-struct OperationData
-{
+struct OperationData {
     Operation op;
     OperandData left;
     OperandData right;
 };
+
 extern char const *kOperationNames[];
 
 char *serializeString(char const *str, char *mem);
