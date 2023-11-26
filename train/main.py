@@ -39,7 +39,6 @@ def train(model, dl_train, dl_val, lr, momentum, num_epochs):
 
     for epoch in range(num_epochs):
         for b_idx, (b_inputs, b_labels) in enumerate(dl_train):
-            print("Epoch: ", epoch, "| Batch: ", b_idx)
 
             model.train()
 
@@ -60,17 +59,18 @@ def train(model, dl_train, dl_val, lr, momentum, num_epochs):
             val_loss = get_val_loss(model, dl_val, loss_func)
 
             final_loss = val_loss
-            print("Train loss: ", total_loss.item(), " \t|\t Validation loss: ", val_loss)
+
+            print(f"Epoch: {epoch} | Batch: {b_idx} | Train loss: {total_loss.item()} | Validation loss: {val_loss}")
 
     return final_loss
 
 
 
-def model_path(final_loss):
+def model_path(final_loss, model_type):
     current_datetime = datetime.datetime.now()
     formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
 
-    file_name = f"models/model_{formatted_datetime}_loss_{final_loss}"
+    file_name = f"models/model_{model_type}_{formatted_datetime}_loss_{final_loss}"
     return file_name
 
 
@@ -87,11 +87,13 @@ def train_main(model_type, lr, rho, batch_size, epoch):
     if epoch is None:
         epoch = 10
 
-    trainset = data.ProgDataset('../data/dataset/train', NUM_TRAIN_EXAMPLES)
+    group_ints = (model_type == 'rnn1')
+
+    trainset = data.ProgDataset('../data/dataset/train', data.NUM_TRAIN_EXAMPLES, group_ints)
     dl_train = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
-    valset = data.ProgDataset('../data/dataset/validation', NUM_VAL_EXAMPLES)
-    dl_val = DataLoader(valset, batch_size=NUM_VAL_EXAMPLES, shuffle=False)
+    valset = data.ProgDataset('../data/dataset/validation', data.NUM_VAL_EXAMPLES, group_ints)
+    dl_val = DataLoader(valset, batch_size=data.NUM_VAL_EXAMPLES, shuffle=False)
 
     net = None
 
@@ -99,19 +101,22 @@ def train_main(model_type, lr, rho, batch_size, epoch):
         net = model.BaselineNet()
     elif model_type == 'conv':
         net = model.ConvolutionNet()
+    elif model_type == 'rnn1':
+        net = model.RecurrentNeuralNet1()
     else:
         assert(False)
 
     final_loss = train(net, dl_train, dl_val, lr, rho, epoch)
 
-    file_name = model_path(final_loss)
+    file_name = model_path(final_loss, model_type)
     torch.save(net, file_name)
 
     json_dict = {
         "learning_rate" : lr,
         "momentum" : rho,
         "batch_size" : batch_size,
-        "num_epochs" : epoch
+        "num_epochs" : epoch,
+        "model_type" : model_type
     }
 
     json_object = json.dumps(json_dict, indent=4)
