@@ -18,13 +18,16 @@ from torch.utils.data import DataLoader
 import numpy as np
 import struct
 
-# Dimensions of the input to the model (1000 IO pairs)
-INPUT_DIM = 1000 * 6 + 2
+NUM_TRAIN_EXAMPLES = 1000
+NUM_VAL_EXAMPLES = 100
 
+# Dimensions of the input to the model (1000 IO pairs)
 INSTRUCTIONS_PER_PROGRAM = 5
 
 IO_PAIRS_PER_PROGRAM = 1000
 INTS_PER_IO_PAIR = 6
+
+INPUT_DIM = IO_PAIRS_PER_PROGRAM * INTS_PER_IO_PAIR
 
 # Baseline model dimensions
 BRANCH1_OUTPUTS = INSTRUCTIONS_PER_PROGRAM * 5
@@ -40,10 +43,12 @@ class ProgDataset(Dataset):
     def __init__(
         self, 
         dataset_path: str,
-        num_examples: int
+        num_examples: int,
+        group_ints: bool = False
     ):
         self.dataset_path = dataset_path
         self.num_examples = num_examples
+        self.group_ints = group_ints
 
     def __len__(self):
         return self.num_examples
@@ -79,14 +84,22 @@ class ProgDataset(Dataset):
     # load io-pairs for a given program.
     def load_io_pairs(self, idx: int):
         io_pair_path = self.dataset_path + "/io-pair-" + str(idx)
-        output_tensor = np.empty(2 + IO_PAIRS_PER_PROGRAM * INTS_PER_IO_PAIR, dtype=np.float32)
 
-        with open(io_pair_path, 'rb') as f:
-            output_tensor[0] = float(int.from_bytes(f.read(1), "little", signed=False))
-            output_tensor[1] = float(int.from_bytes(f.read(1), "little", signed=False))
+        output_tensor = None
 
-            for i in range(IO_PAIRS_PER_PROGRAM * INTS_PER_IO_PAIR):
-                output_tensor[2 + i] = float(int.from_bytes(f.read(4), "little", signed=True)) * 0.0001
+        if self.group_ints:
+            output_tensor = np.empty((IO_PAIRS_PER_PROGRAM, INTS_PER_IO_PAIR), dtype=np.float32)
+
+            with open(io_pair_path, 'rb') as f:
+                for pair_idx in range(IO_PAIRS_PER_PROGRAM):
+                    for int_idx in range(INTS_PER_IO_PAIR):
+                        output_tensor[pair_idx][int_idx] = float(int.from_bytes(f.read(4), "little", signed=True)) * 0.0001
+        else:
+            output_tensor = np.empty(IO_PAIRS_PER_PROGRAM * INTS_PER_IO_PAIR, dtype=np.float32)
+
+            with open(io_pair_path, 'rb') as f:
+                for i in range(IO_PAIRS_PER_PROGRAM * INTS_PER_IO_PAIR):
+                    output_tensor[i] = float(int.from_bytes(f.read(4), "little", signed=True)) * 0.0001
 
         return torch.from_numpy(output_tensor)
 

@@ -20,48 +20,47 @@ inline constexpr uint32_t kLiteralOffset = 0;
 #define RVAL_PROB_VECOTR_LEN (kMaxInputs + kNumRegisters + kLiteralRange)
 
 
-enum class Operation
-{
-	Add,
-	Sub,
-	Mul,
-	Div,
-	Mov,
-	None, // None must go before Nop since Nop isn't an explicit instruction.
-	Nop
+enum class Operation {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mov,
+    None, // None must go before Nop since Nop isn't an explicit instruction.
+    Nop
 };
+
 inline constexpr uint32_t kNumOperations = (uint32_t)Operation::None;
 
-enum class Operand
-{
-	Input,
-	Literal,
-	Register,
-	None
+enum class Operand {
+    Input,
+    Literal,
+    Register,
+    None
 };
+
 inline constexpr uint32_t kNumOperands = (uint32_t)Operand::None;
 
-struct OperandData
-{
-	Operand op;
+struct OperandData {
+    Operand op;
 
-	/* if op == Input: value takes on [0, numInputs]
-	 * if op == Register: value takes on [0, numRegisters]
-	 * if op == Literal: value takes on any value */
-	int value;
+    /* if op == Input: value takes on [0, numInputs]
+     * if op == Register: value takes on [0, numRegisters]
+     * if op == Literal: value takes on any value */
+    int value;
 
-	bool operator==(const OperandData &other)
-	{
-		return op == other.op && value == other.value;
-	}
+    bool operator==(const OperandData &other)
+    {
+        return op == other.op && value == other.value;
+    }
 };
 
-struct OperationData
-{
-	Operation op;
-	OperandData left;
-	OperandData right;
+struct OperationData {
+    Operation op;
+    OperandData left;
+    OperandData right;
 };
+
 extern char const *kOperationNames[];
 
 char *serializeString(char const *str, char *mem);

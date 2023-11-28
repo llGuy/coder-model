@@ -1,5 +1,13 @@
 # CS229 Final Project
 
+# Setup the C++ build
+1) `cd` into the data directory
+2) `mkdir build`
+3) `cd build`
+4) `cmake ..`
+5) `make`
+6) The executable programs will be in the build directory
+
 # For training, run this:
 `python3 main.py --run=train --lr=0.00001 --rho=0.5`
 
