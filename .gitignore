@@ -11,3 +11,4 @@ train/models/model*
 data/*.o
 data/inspect
 data/build
+build
