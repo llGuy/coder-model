@@ -1,5 +1,4 @@
-data/dataset
-data/gen.dSYM
+dataset
 __pycache__
 *.swp
 .cache

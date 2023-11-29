@@ -1,9 +1,16 @@
 # CS229 Final Project
 
-Setup:
+## Setup:
 
 `cmake -S . -B build`
 `cd build && make -j10`
 
 To run the training code:
 `./train.sh`
+
+## Tensor layouts:
+
+Assuming a batch size of 1:
+
+The layout of the observation tensor is a vector of dimension 1+15+6000 = 6016
+The layout of the action tensor is a vector of dimension 5+6+20=31
