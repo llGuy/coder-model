@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <assert.h>
 
 inline constexpr uint32_t kNumIOPairs = 1000;
 

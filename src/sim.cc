@@ -5,6 +5,8 @@
 #include <fstream>
 #include <filesystem>
 
+namespace nb = nanobind;
+
 /* This encapsulates the "instructions" of the output program */
 struct Program {
     /* Each instruction has 3 entries (op leftOperand rightOperand) */
@@ -93,17 +95,64 @@ void SimManager::reset()
     }
 }
 
-void SimManager::step(ActionTensor action)
+void SimManager::step(ActionTensor action_tensor)
 {
-    
+    auto action_tensor_view = action_tensor.view();
+
+    uint32_t batch_size = action_tensor_view.shape(0);
+    uint32_t action_size = action_tensor_view.shape(1);
+
+    /* Access an element in the tensor with `action_tensor_view(x, y)` */
 }
 
-ObservationTensor SimManager::getObservations()
+ProgObservationTensor SimManager::getProgObservations()
 {
-    
+    uint32_t tensor_floats = impl->numWorlds * kProgObservationSize;
+    float *tensor_values = new float[tensor_floats];
+
+    uint32_t total_tokens = kProgramNumInstructions * 3;
+    uint32_t token_cursor = impl->globalTimeStep % total_tokens;
+
+    /* Encode the programs into the tensor values. */
+    for (int i = 0; i < impl->numWorlds; ++i) {
+        Program *prog = impl->progs + i;
+
+        float *current_ptr = tensor_values + i * kProgObservationSize;
+        *(current_ptr++) = (float)token_cursor;
+
+        for (int instr_idx = 0; instr_idx < kProgramNumInstructions; ++instr_idx) {
+            *(current_ptr++) = (float)prog->entries[instr_idx][0];
+            *(current_ptr++) = (float)prog->entries[instr_idx][1];
+            *(current_ptr++) = (float)prog->entries[instr_idx][2];
+        }
+
+        assert(current_ptr - tensor_values == kProgObservationSize);
+    }
+
+    nb::capsule owner(tensor_values, [](void *p) noexcept {
+        delete[] (float *) p;
+    });
+
+    return ProgObservationTensor(tensor_values, 
+        { impl->numWorlds, kProgObservationSize }, owner);   
+}
+
+IOPairObservationTensor SimManager::getIOPairObservations()
+{
+    uint32_t tensor_floats = impl->numWorlds * kIOPairObservationSize;
+    float *tensor_values = new float[tensor_floats];
+
+    memcpy(tensor_values, impl->ioPairs, tensor_floats * sizeof(float));
+
+    nb::capsule owner(tensor_values, [](void *p) noexcept {
+        delete[] (float *) p;
+    });
+
+    return IOPairObservationTensor(tensor_values, 
+        { impl->numWorlds, kIOPairObservationSize }, owner);   
 }
 
 RewardTensor SimManager::getRewards()
 {
-    
+    /* Allocate the reward tensor and fill in */
 }
