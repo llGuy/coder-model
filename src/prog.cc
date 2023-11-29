@@ -74,8 +74,7 @@ uint64_t argmaxIdx(float *vec, uint64_t num_elem)
 {
     assert(num_elem > 0);
     uint64_t max_idx = 0;
-    for (uint64_t i = 1; i < num_elem; ++i)
-    {
+    for (uint64_t i = 1; i < num_elem; ++i) {
         if (vec[i] > vec[max_idx]) max_idx = i;
     }
     return max_idx;
