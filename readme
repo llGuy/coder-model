@@ -1,2 +1,9 @@
 # CS229 Final Project
 
+Setup:
+
+`cmake -S . -B build`
+`cd build && make -j10`
+
+To run the training code:
+`./train.sh`
