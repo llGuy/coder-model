@@ -1,16 +1,27 @@
-"""
 import torch
+import argparse
 import coder_model_sim as sim
+from dataclasses import dataclass
 
-import ppo
+@dataclass
+class TrainParams:
+    batch_size: int
 
-data = torch.tensor([1, 2, 3], dtype=torch.float32)
+def main(params: TrainParams):
+    # Create the simulation manager
+    env = sim.SimManager(params.batch_size)
 
-print(f"Before {data}")
+    print(f"Program observation size: {sim.prog_observation_size}")
+    print(f"IO pair observation size: {sim.io_pair_observation_size}")
+    print(f"Action size: {sim.action_size}");
 
-sim.inspect(data)
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
 
-print(f"After {data}")
+    # If run==train
+    parser.add_argument('--batch_size', type=int, required=True)
+    args = parser.parse_args()
 
-print(ppo.add(1, 2))
-"""
+    params = TrainParams(args.batch_size)
+
+    main(params)

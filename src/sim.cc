@@ -272,6 +272,9 @@ static void checkPrograms(uint32_t num_worlds,
     }
 }
 
+SimManager::SimManager() = default;
+SimManager::~SimManager() = default;
+
 SimManager::SimManager(uint32_t num_worlds)
     : impl(new Impl(num_worlds, loadIOPairs(num_worlds)))
 {

@@ -19,3 +19,6 @@ The layout of the action tensor is a vector of dimension 5+6+20=31
 If the generated token is invalid, reward is -1
 If the generated token is valid, reward is 1
 If after the generated token, an IO pair matches, reward is 10
+
+## Example running
+`./train.sh --batch_size=100`

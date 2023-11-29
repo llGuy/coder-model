@@ -18,6 +18,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/external/nanobind)
 nanobind_add_module(coder_model_sim
     src/entry.cc
     src/sim.cc 
+    src/prog.cc
 )
 
 target_compile_definitions(coder_model_sim PRIVATE

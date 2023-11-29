@@ -34,8 +34,10 @@ struct SimManager {
 
     /* This is the path to the folder in which we will find a bunch of
      * IO pairs with file names io-pair-### */
-    SimManager(uint32_t num_worlds);
+    SimManager();
     ~SimManager();
+
+    SimManager(uint32_t num_worlds);
 
     void reset();
     void step(ActionTensor action);
