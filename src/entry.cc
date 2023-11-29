@@ -6,6 +6,10 @@ using namespace nb::literals;
 
 NB_MODULE(coder_model_sim, m) 
 {
+    // nb::class_<SimManager>(m, "SimManager")
+        // .def("__init__")
+
+#if 1
     m.def("inspect", [](nb::ndarray<float, nb::shape<nb::any>> data) {
 #if 0
         printf("Array data pointer : %p\n", a.data());
@@ -31,4 +35,5 @@ NB_MODULE(coder_model_sim, m)
         for (size_t i = 0; i < v.shape(0); ++i)
             v(i) = v(i) * 2;
     });
+#endif
 }

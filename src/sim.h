@@ -20,14 +20,20 @@ using RewardTensor = nanobind::ndarray<
     float, nanobind::shape<nanobind::any>
 >;
 
-/* Handles the simulation */
+/* Handles the simulation. Just for the sake of RL terminology,
+ * each "world" is going to be a simulation where an agent tries to
+ * generate the correct program */
 struct SimManager {
     struct Impl;
     std::unique_ptr<Impl> impl;
 
-    SimManager(const char *path_to_data);
+    /* This is the path to the folder in which we will find a bunch of
+     * IO pairs with file names io-pair-### */
+    SimManager(uint32_t num_worlds);
     ~SimManager();
 
+    void reset();
     void step(ActionTensor action);
     ObservationTensor getObservations();
+    RewardTensor getRewards();
 };

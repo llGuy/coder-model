@@ -350,22 +350,33 @@ void generateSet(const char *dirPath, uint32_t numExamples)
 
             int *outputs = executeProgram(prog);
 
+            float *outputs_float = (float *)malloc(sizeof(float) * numInputs);
+            float *inputs_float = (float *)malloc(sizeof(float) * numOutputs);
+
+            for (int x = 0; x < numInputs; ++x) {
+                inputs_float[x] = (float)inputs[x];
+            }
+
+            for (int x = 0; x < numOutputs; ++x) {
+                outputs_float[x] = (float)outputs[x];
+            }
+
             /* Write the input output pair to a file. */
-            signed int filler = 0xBAD;
+            float filler = 0.0f;
             for (int j = 0; j < numInputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(inputs + j), sizeof(int)); 
+                stream.write(reinterpret_cast<char const *>(inputs_float + j), sizeof(float)); 
             }
 
             for (int j = 0; j < kMaxInputs - numInputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(&filler), sizeof(int)); 
+                stream.write(reinterpret_cast<char const *>(&filler), sizeof(float)); 
             }
 
             for (int j = 0; j < numOutputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(outputs + j), sizeof(int)); 
+                stream.write(reinterpret_cast<char const *>(outputs_float + j), sizeof(float)); 
             }
 
             for (int j = 0; j < kMaxOutputs - numOutputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(&filler), sizeof(int)); 
+                stream.write(reinterpret_cast<char const *>(&filler), sizeof(float)); 
             }
 
             free(outputs);
