@@ -13,7 +13,7 @@ class HyperParameters:
 class ProximalPolicyOptimizer:
     def __init__(
         self,
-        environment: sim.Environment,
+        env: sim.SimManager,
         hparams: HyperParameters
     ):
         pass

@@ -338,7 +338,7 @@ ProgObservationTensor SimManager::getProgObservations()
             *(current_ptr++) = (float)prog->tokens[instr_idx][2];
         }
 
-        assert(current_ptr - tensor_values == kProgObservationSize);
+        assert(current_ptr - tensor_values == (i+1) * kProgObservationSize);
     }
 
     nb::capsule owner(tensor_values, [](void *p) noexcept {

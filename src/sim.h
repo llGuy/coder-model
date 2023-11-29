@@ -10,19 +10,30 @@ inline constexpr uint32_t kActionSize = 31;
 
 /* Define tensors and their shapes. */
 using ProgObservationTensor = nanobind::ndarray<
-    float, nanobind::shape<nanobind::any, kProgObservationSize>
+    nanobind::pytorch,
+    float, 
+    nanobind::shape<nanobind::any,
+    kProgObservationSize>
 >;
 
 using IOPairObservationTensor = nanobind::ndarray<
-    float, nanobind::shape<nanobind::any, kIOPairObservationSize>
+    nanobind::pytorch,
+    float,
+    nanobind::shape<nanobind::any,
+    kIOPairObservationSize>
 >;
 
 using ActionTensor = nanobind::ndarray<
-    float, nanobind::shape<nanobind::any, kActionSize>
+    nanobind::pytorch,
+    float,
+    nanobind::shape<nanobind::any,
+    kActionSize>
 >;
 
 using RewardTensor = nanobind::ndarray<
-    float, nanobind::shape<nanobind::any>
+    nanobind::pytorch,
+    float,
+    nanobind::shape<nanobind::any>
 >;
 
 /* Handles the simulation. Just for the sake of RL terminology,
