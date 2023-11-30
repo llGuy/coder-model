@@ -3,7 +3,7 @@ import argparse
 import coder_model_sim as sim
 from dataclasses import dataclass
 
-import optimizer
+from optimizer import ProximalPolicyOptimizer, HyperParameters
 
 @dataclass
 class TrainParams:
@@ -18,11 +18,10 @@ def main(params: TrainParams):
     print(f"IO pair observation size: {sim.io_pair_observation_size}")
     print(f"Action size: {sim.action_size}");
 
-    env.reset()
+    # Placeholder values
+    hparams = HyperParameters(params.batch_size, 1024, 1024, 0.1)
 
-    prog_obs = env.get_prog_observations()
-    print(prog_obs.shape)
-    print(prog_obs)
+    optimizer = ProximalPolicyOptimizer(env, hparams)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

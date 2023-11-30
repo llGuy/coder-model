@@ -110,6 +110,8 @@ static void applyAction(uint32_t num_worlds,
     uint32_t instr_to_mod = current_token_id / 3;
     uint32_t token_to_mod = current_token_id % 3;
 
+    assert(num_worlds == view.shape(0));
+
     for (int i = 0; i < num_worlds; ++i) {
         /* Copy the actions over */
         for (int j = 0; j < kActionSize; ++j) {

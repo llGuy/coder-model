@@ -2,31 +2,49 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# This defines a simple multi-layer network
+# This defines a simple multi-layer network which takes in two inputs:
+# - the program observations
+# - the io pair observations
 class MultiLayerNet(nn.Module):
+    # input_dim_prog: dimensions of the tensor containing the programs
+    # input_dim_io: dimensions of the tensor containing the IO pairs
+    # post_input_dim: the dimensions of the hidden layer which
+    #                 connects the prog and io into a single tensor
     def __init__(
         self, 
-        input_dim: int,
+        input_dim_prog: int,
+        input_dim_io: int,
+        post_input_dim: int,
         layer_dims: list[int],
         output_dim: int
     ):
         super(MultiLayerNet, self).__init__()
 
+        self.prog_fc = nn.Linear(input_dim_prog, post_input_dim)
+        self.io_fc = nn.Linear(input_dim_io, post_input_dim)
+
         self.fc = []
 
-        prev_dim = input_dim
+        prev_dim = post_input_dim * 2
+
         for hidden_dim in layer_dims:
             self.fc.append(nn.Linear(prev_dim, hidden_dim))
             prev_dim = hidden_dim
 
         self.fc.append(nn.Linear(prev_dim, output_dim))
 
-    def forward(self, x):
+    def forward(self, x_prog, x_io_pair):
+        a_prog = F.relu(self.prog_fc(x_prog))
+        a_io = F.relu(self.io_fc(x_io_pair))
+
+        # Merge the a_prog and a_io tensors
+        merged = torch.cat((a_prog, a_io), dim=1)
+
         for i in range(len(self.fc)):
-            x = self.fc[i](x)
+            merged = self.fc[i](merged)
 
             # Only apply non-linearity on layers before the last
             if i != (len(self.fc) - 1):
-                x = F.relu(x)
+                merged = F.relu(merged)
 
-        return x
+        return merged
