@@ -70,7 +70,7 @@ def model_path(final_loss, model_type):
     current_datetime = datetime.datetime.now()
     formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
 
-    file_name = f"models/model_{model_type}_{formatted_datetime}_loss_{final_loss}"
+    file_name = f"../models/model_{model_type}_{formatted_datetime}_loss_{final_loss}"
     return file_name
 
 
