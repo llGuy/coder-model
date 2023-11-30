@@ -89,7 +89,7 @@ class ProximalPolicyOptimizer:
                 batch_acts.append(action)
                 batch_lprobs.append(lprob)
 
-            batch_episode_lengths.append(epi_t + 1)
+            batch_episode_lengths.append(ep_t + 1)
             batch_rewards.append(episode_rewards)
 
         batch_obs = torch.tensor(batch_obs, dtype=torch.float)

@@ -20,8 +20,8 @@ def main(params: TrainParams):
     # Placeholder values
     hparams = ppo.HyperParameters(
         batch_size=params.batch_size,
-        timesteps_per_batch=1024,
-        max_timesteps_per_episode=1024,
+        timesteps_per_batch=15,
+        max_timesteps_per_episode=15,
         delta=0.1,
         gamma=0.2,
         num_epochs=5
