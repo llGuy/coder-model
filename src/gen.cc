@@ -314,8 +314,8 @@ void generateSet(const char *dirPath, uint32_t numExamples)
     };
 
     for (int i = 0; i < numExamples; ++i) {
-        uint8_t numInputs = (uint8_t) rnd.next(1, kMaxInputs+1);
-        uint8_t numOutputs = (uint8_t) rnd.next(1, numInputs+1);
+        uint8_t numInputs = (uint8_t) rnd.next(2, kMaxInputs+1);
+        uint8_t numOutputs = (uint8_t) rnd.next(2, numInputs+1);
 
         /* Generate the program */
         float *src = makeProgram(numInputs, rnd);

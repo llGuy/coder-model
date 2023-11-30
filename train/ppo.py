@@ -11,6 +11,7 @@ class HyperParameters:
     max_timesteps_per_episode: int
     delta: float
     gamma: float
+    num_epochs: int
 
 class ProximalPolicyOptimizer:
     def __init__(
@@ -30,7 +31,7 @@ class ProximalPolicyOptimizer:
             input_dim_prog=self.prog_obs_space,
             input_dim_io=self.io_pair_obs_space,
             post_input_dim=512,
-            layer_dims[512, 128],
+            layer_dims=[512, 128],
             output_dim=self.action_space
         )
 
@@ -39,7 +40,7 @@ class ProximalPolicyOptimizer:
             input_dim_prog=self.prog_obs_space,
             input_dim_io=self.io_pair_obs_space,
             post_input_dim=512,
-            layer_dims[512, 128],
+            layer_dims=[512, 128],
             output_dim=1
         )
 
@@ -47,7 +48,7 @@ class ProximalPolicyOptimizer:
         self.io_pair_obs = self.env.get_io_pair_observations()
 
         self.cov_var = torch.full(size=(self.action_space,), fill_value=0.5)
-        self.cot_mat = torch.diag(self.cov_var)
+        self.cov_mat = torch.diag(self.cov_var)
 
     def learn(self, total_time_steps):
         # Keep track of how many steps in total have been simulated across batches
@@ -86,7 +87,7 @@ class ProximalPolicyOptimizer:
 
                 episode_rewards.append(rewards)
                 batch_acts.append(action)
-                batch_lprobs.append(lprobs)
+                batch_lprobs.append(lprob)
 
             batch_episode_lengths.append(epi_t + 1)
             batch_rewards.append(episode_rewards)
@@ -106,7 +107,7 @@ class ProximalPolicyOptimizer:
         action = dist.sample()
         log_prob = dist.log_prob(action)
 
-        return action.detach().numpy(), log_prob.detach()
+        return action.detach(), log_prob.detach()
 
     def _compute_rewards_to_go(self, batch_rewards):
         batch_rewards_to_go = []

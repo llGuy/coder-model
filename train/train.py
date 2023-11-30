@@ -1,9 +1,8 @@
+import ppo
 import torch
 import argparse
 import coder_model_sim as sim
 from dataclasses import dataclass
-
-from optimizer import ProximalPolicyOptimizer, HyperParameters
 
 @dataclass
 class TrainParams:
@@ -19,9 +18,18 @@ def main(params: TrainParams):
     print(f"Action size: {sim.action_size}");
 
     # Placeholder values
-    hparams = HyperParameters(params.batch_size, 1024, 1024, 0.1)
+    hparams = ppo.HyperParameters(
+        batch_size=params.batch_size,
+        timesteps_per_batch=1024,
+        max_timesteps_per_episode=1024,
+        delta=0.1,
+        gamma=0.2,
+        num_epochs=5
+    )
 
-    optimizer = ProximalPolicyOptimizer(env, hparams)
+    optimizer = ppo.ProximalPolicyOptimizer(env, hparams)
+
+    optimizer.learn(1000)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

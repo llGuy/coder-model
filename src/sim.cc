@@ -264,6 +264,7 @@ static void checkPrograms(uint32_t num_worlds,
                     if (status.diffs[d] == 0)
                         matches++;
 
+                /* Give some more reward if there are 2 matches */
                 if (matches == 2) {
                     rewards_for_prog += 0.1f;
                 }
