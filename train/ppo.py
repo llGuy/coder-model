@@ -50,6 +50,12 @@ class ProximalPolicyOptimizer:
         self.cov_var = torch.full(size=(self.action_space,), fill_value=0.5)
         self.cov_mat = torch.diag(self.cov_var)
 
+    """
+    batched_rollouts is of shape (batch_size, num_episodes, timesteps_per_episode).
+    """
+    def evaluate(self, batched_rollouts):
+        pass    
+
     def learn(self, total_time_steps):
         # Keep track of how many steps in total have been simulated across batches
         global_num_timesteps = 0
