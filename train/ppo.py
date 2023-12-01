@@ -85,17 +85,30 @@ class ProximalPolicyOptimizer:
                 obs = self.env.get_prog_observations()
                 rewards = self.env.get_rewards()
 
-                episode_rewards.append(rewards)
+                episode_rewards.append(rewards) # This has shape num_timesteps, batch_size
                 batch_acts.append(action)
                 batch_lprobs.append(lprob)
 
             batch_episode_lengths.append(ep_t + 1)
             batch_rewards.append(episode_rewards)
 
-        batch_obs = torch.tensor(batch_obs, dtype=torch.float)
-        batch_acts = torch.tensor(batch_acts, dtype=torch.float)
-        batch_lprobs = torch.tensor(batch_lprobs, dtype=torch.float)
+        batch_obs = torch.stack(batch_obs, dim=0)
+        batch_acts = torch.stack(batch_acts, dim=0)
+        batch_lprobs = torch.stack(batch_lprobs, dim=0)
 
+        # batch_rewards starts off in the following format:
+        #   list length num_episodes of
+        #       list length timesteps_per_episode of
+        #           tensor shape (batch_size,)
+        # We want to turn this into a tensor of shape
+        #   (batch_size, num_episodes, timesteps_per_episode)
+
+        imm = []
+        for ep_idx in range(len(batch_rewards)):
+            imm.append(torch.stack(batch_rewards[ep_idx], dim=1))
+        batch_rewards = torch.stack(imm).permute(1, 0, 2)
+
+        # These are Q-values per timestep per batch.
         batch_rewards_to_go = self._compute_rewards_to_go(batch_rewards)
 
         return batch_obs, batch_acts, batch_lprobs, batch_rewards_to_go, batch_episode_lengths
@@ -110,16 +123,19 @@ class ProximalPolicyOptimizer:
         return action.detach(), log_prob.detach()
 
     def _compute_rewards_to_go(self, batch_rewards):
-        batch_rewards_to_go = []
 
-        for ep_rewards in reversed(batch_rewards):
-            discounted_reward = 0
+        batch_size, num_episodes, timesteps_per_episode = batch_rewards.shape
+        batched_rewards_to_go = torch.empty(batch_size, num_episodes, timesteps_per_episode)
 
-            for reward in reversed(ep_rewards):
-                discounted_reward = reward + discounted_reward * self.gamma
-                batch_rewards_to_go.insert(0, discounted_reward)
+        for ep_num in range(num_episodes):
 
-        batch_rewards_to_go = torch.tensor(batch_rewards_to_go, dtype=torch.float)
+            discounted_reward = torch.zeros(batch_size)
 
-        return batch_rewards_to_go
+            for timestep in reversed(range(timesteps_per_episode)):
+                discounted_reward += batch_rewards[:, ep_num, timestep] + \
+                        self.hparams.gamma * discounted_reward
 
+                batched_rewards_to_go[:, ep_num, timesteps_per_episode - timestep - 1] = \
+                        discounted_reward.clone()
+
+        return batched_rewards_to_go

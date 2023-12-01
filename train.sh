@@ -1,3 +1,3 @@
 #!/bin/bash
 
-PYTHONPATH=build python3 train/train.py $@
+PYTHONPATH=build python3.10 train/train.py $@
