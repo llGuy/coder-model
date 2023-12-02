@@ -7,7 +7,7 @@ from torch.distributions import MultivariateNormal
 @dataclass
 class HyperParameters:
     batch_size: int
-    timesteps_per_batch: int
+    timesteps_per_rollout: int
     max_timesteps_per_episode: int
     delta: float
     gamma: float
@@ -51,10 +51,13 @@ class ProximalPolicyOptimizer:
         self.cov_mat = torch.diag(self.cov_var)
 
     """
-    batched_rollouts is of shape (batch_size, num_episodes, timesteps_per_episode).
+    batched_rollouts is of shape (num_episodes, batch_size, timesteps_per_episode).
     """
-    def evaluate(self, batched_rollouts):
+    def evaluate(self, batch_obs):
+        num_ep, batch_size, timesteps_per_episode = batch_obs.size()
+        
         pass    
+
 
     def learn(self, total_time_steps):
         # Keep track of how many steps in total have been simulated across batches
@@ -64,20 +67,26 @@ class ProximalPolicyOptimizer:
             batch_obs, batch_acts, batch_lprobs, batch_rewards_to_go, batch_lengths = self._rollout()
 
     def _rollout(self):
-        batch_obs = []
-        batch_acts = []
-        batch_lprobs = []
-        batch_rewards = []
-        batch_rewards_to_go = []
-        batch_episode_lengths = []
+        h = self.hparams
+
+        # (num_episodes, timesteps_per_episode, batch_size, state_dim)
+        rollout_obs = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size, h.state_dim)
+
+        # (num_episodes, timesteps_per_episode, batch_size, act_dim)
+        rollout_acts = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size, h.act_dim)
+
+        # (num_episodes, timesteps_per_episode, batch_size)
+        rollout_lprobs = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size)
+
+        # (num_episodes, timesteps_per_episode, batch_size)
+        rollout_rewards = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size)
 
         t = 0
 
-        while t < self.hparams.timesteps_per_batch:
-            episode_rewards = []
+        while t < self.hparams.timesteps_per_rollout:
 
             self.env.reset()
-            obs = self.env.get_prog_observations()
+            obs = self.env.get_prog_observations() # (batch_size, state_dim)
 
             for ep_t in range(self.hparams.max_timesteps_per_episode):
                 t += 1
@@ -95,7 +104,6 @@ class ProximalPolicyOptimizer:
                 batch_acts.append(action)
                 batch_lprobs.append(lprob)
 
-            batch_episode_lengths.append(ep_t + 1)
             batch_rewards.append(episode_rewards)
 
         batch_obs = torch.stack(batch_obs, dim=0)
@@ -117,7 +125,9 @@ class ProximalPolicyOptimizer:
         # These are Q-values per timestep per batch.
         batch_rewards_to_go = self._compute_rewards_to_go(batch_rewards)
 
-        return batch_obs, batch_acts, batch_lprobs, batch_rewards_to_go, batch_episode_lengths
+        print(batch_obs.size())
+
+        return batch_obs, batch_acts, batch_lprobs, batch_rewards_to_go
 
     def _get_action(self, obs):
         mean = self.actor(obs, self.io_pair_obs)
