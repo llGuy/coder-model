@@ -24,7 +24,9 @@ def main(params: TrainParams):
         num_timesteps_per_episode=15,
         delta=0.1,
         gamma=0.2,
-        num_epochs=5
+        num_epochs=5,
+        clip=0.2,
+        lr=0.001
     )
 
     optimizer = ppo.ProximalPolicyOptimizer(env, hparams)

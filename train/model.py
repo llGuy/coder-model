@@ -38,7 +38,7 @@ class MultiLayerNet(nn.Module):
         a_io = F.relu(self.io_fc(x_io_pair))
 
         # Merge the a_prog and a_io tensors
-        merged = torch.cat((a_prog, a_io), dim=1)
+        merged = torch.cat((a_prog, a_io), dim=len(x_prog.size())-1)
 
         for i in range(len(self.fc)):
             merged = self.fc[i](merged)

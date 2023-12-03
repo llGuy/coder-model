@@ -1,5 +1,7 @@
 import model
 import torch
+from torch.optim import Adam
+import torch.nn as nn
 import coder_model_sim as sim
 from dataclasses import dataclass
 from torch.distributions import MultivariateNormal
@@ -12,6 +14,8 @@ class HyperParameters:
     delta: float
     gamma: float
     num_epochs: int
+    clip: float
+    lr: float
 
 class ProximalPolicyOptimizer:
     def __init__(
@@ -50,21 +54,63 @@ class ProximalPolicyOptimizer:
         self.cov_var = torch.full(size=(self.action_space,), fill_value=0.5)
         self.cov_mat = torch.diag(self.cov_var)
 
-    """
-    batched_rollouts is of shape (num_episodes, batch_size, timesteps_per_episode).
-    """
-    def evaluate(self, batch_obs):
-        num_ep, batch_size, timesteps_per_episode = batch_obs.size()
+        self.actor_optim = Adam(self.actor.parameters(), lr=self.hparams.lr)
+        self.critic_optim = Adam(self.critic.parameters(), lr=self.hparams.lr)
         
-        pass    
 
+    def expand_io_obs(self, num_episodes, num_timesteps_per_episode):
+        expanded_io_obs = self.io_pair_obs.unsqueeze(0)
+        expanded_io_obs = expanded_io_obs.expand(num_timesteps_per_episode, -1, -1)
+        expanded_io_obs = expanded_io_obs.unsqueeze(0)
+        expanded_io_obs = expanded_io_obs.expand(num_episodes, -1, -1, -1)
+        return expanded_io_obs
+
+    """
+    rollout_obs is of shape (num_episodes, num_timesteps_per_episode, batch_size, state_dim)
+    """
+    def evaluate(self, rollout_obs, rollout_acts):
+        num_ep, num_timesteps_per_episode, batch_size, state_dim = rollout_obs.size()
+
+        V = self.critic(rollout_obs, self.expand_io_obs(num_ep, num_timesteps_per_episode))
+        mean = self.actor(rollout_obs, self.expand_io_obs(num_ep, num_timesteps_per_episode)) 
+
+        dist = MultivariateNormal(mean, self.cov_mat)
+        log_probs = dist.log_prob(rollout_acts)
+
+        return V.squeeze(), log_probs
 
     def learn(self, total_time_steps):
         # Keep track of how many steps in total have been simulated across batches
         global_num_timesteps = 0
 
         while global_num_timesteps < total_time_steps:
-            rollout_obs, rollout_acts, rollout_lprobs, rollout_rewards_to_go = self._rollout()
+            rollout_obs, rollout_acts, rollout_lprobs, rollout_rtgs = self._rollout()
+
+            V, _ = self.evaluate(rollout_obs, rollout_acts)
+            A_k = rollout_rtgs - V.detach()
+
+            A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
+
+            for _ in range(self.hparams.num_epochs):
+                V, cur_lprobs = self.evaluate(rollout_obs, rollout_acts)
+                ratios = torch.exp(cur_lprobs - rollout_lprobs)
+
+                surr1 = ratios * A_k
+                surr2 = torch.clamp(ratios, 1 - self.hparams.clip, 1 + self.hparams.clip) * A_k
+
+                actor_loss = (-torch.min(surr1, surr2)).mean()
+                self.actor_optim.zero_grad()
+                actor_loss.backward(retain_graph=True)
+                self.actor_optim.step()
+
+                critic_loss = nn.MSELoss()(V, rollout_rtgs)
+                self.critic_optim.zero_grad()
+                critic_loss.backward()
+                self.critic_optim.step()
+                print(actor_loss, critic_loss)
+
+            global_num_timesteps += self.hparams.num_episodes_per_rollout * \
+                    self.hparams.num_timesteps_per_episode
 
     def _rollout(self):
         h = self.hparams
