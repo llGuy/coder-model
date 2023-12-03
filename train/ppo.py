@@ -7,8 +7,8 @@ from torch.distributions import MultivariateNormal
 @dataclass
 class HyperParameters:
     batch_size: int
-    timesteps_per_rollout: int
-    max_timesteps_per_episode: int
+    num_episodes_per_rollout: int
+    num_timesteps_per_episode: int
     delta: float
     gamma: float
     num_epochs: int
@@ -64,70 +64,68 @@ class ProximalPolicyOptimizer:
         global_num_timesteps = 0
 
         while global_num_timesteps < total_time_steps:
-            batch_obs, batch_acts, batch_lprobs, batch_rewards_to_go, batch_lengths = self._rollout()
+            rollout_obs, rollout_acts, rollout_lprobs, rollout_rewards_to_go = self._rollout()
 
     def _rollout(self):
         h = self.hparams
 
         # (num_episodes, timesteps_per_episode, batch_size, state_dim)
-        rollout_obs = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size, h.state_dim)
+        rollout_obs = torch.empty(
+            h.num_episodes_per_rollout,
+            h.num_timesteps_per_episode,
+            h.batch_size,
+            self.prog_obs_space
+        )
 
         # (num_episodes, timesteps_per_episode, batch_size, act_dim)
-        rollout_acts = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size, h.act_dim)
+        rollout_acts = torch.empty(
+            h.num_episodes_per_rollout,
+            h.num_timesteps_per_episode,
+            h.batch_size,
+            self.action_space
+        )
 
         # (num_episodes, timesteps_per_episode, batch_size)
-        rollout_lprobs = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size)
+        rollout_lprobs = torch.empty(
+            h.num_episodes_per_rollout,
+            h.num_timesteps_per_episode,
+            h.batch_size
+        )
 
         # (num_episodes, timesteps_per_episode, batch_size)
-        rollout_rewards = torch.empty(h.num_episodes, h.timesteps_per_episode, h.batch_size)
+        rollout_rewards = torch.empty(
+            h.num_episodes_per_rollout,
+            h.num_timesteps_per_episode,
+            h.batch_size
+        )
 
-        t = 0
-
-        while t < self.hparams.timesteps_per_rollout:
-
+        for episode_idx in range(h.num_episodes_per_rollout):
             self.env.reset()
-            obs = self.env.get_prog_observations() # (batch_size, state_dim)
 
-            for ep_t in range(self.hparams.max_timesteps_per_episode):
-                t += 1
+            # (batch_size, state_dim)
+            obs = self.env.get_prog_observations()
 
-                batch_obs.append(obs)
+            for timestep_idx in range(h.num_timesteps_per_episode):
+                # batch_obs.append(obs)
+                rollout_obs[episode_idx, timestep_idx] = obs
 
                 action, lprob = self._get_action(obs)
-
                 self.env.step(action)
 
+                # (batch_size, state_dim)
                 obs = self.env.get_prog_observations()
+
+                # (batch_size, 1)
                 rewards = self.env.get_rewards()
 
-                episode_rewards.append(rewards) # This has shape num_timesteps, batch_size
-                batch_acts.append(action)
-                batch_lprobs.append(lprob)
-
-            batch_rewards.append(episode_rewards)
-
-        batch_obs = torch.stack(batch_obs, dim=0)
-        batch_acts = torch.stack(batch_acts, dim=0)
-        batch_lprobs = torch.stack(batch_lprobs, dim=0)
-
-        # batch_rewards starts off in the following format:
-        #   list length num_episodes of
-        #       list length timesteps_per_episode of
-        #           tensor shape (batch_size,)
-        # We want to turn this into a tensor of shape
-        #   (batch_size, num_episodes, timesteps_per_episode)
-
-        imm = []
-        for ep_idx in range(len(batch_rewards)):
-            imm.append(torch.stack(batch_rewards[ep_idx], dim=1))
-        batch_rewards = torch.stack(imm).permute(1, 0, 2)
+                rollout_rewards[episode_idx, timestep_idx] = rewards
+                rollout_acts[episode_idx, timestep_idx] = action
+                rollout_lprobs[episode_idx, timestep_idx] = lprob
 
         # These are Q-values per timestep per batch.
-        batch_rewards_to_go = self._compute_rewards_to_go(batch_rewards)
+        rollout_rewards_to_go = self._compute_rewards_to_go(rollout_rewards)
 
-        print(batch_obs.size())
-
-        return batch_obs, batch_acts, batch_lprobs, batch_rewards_to_go
+        return rollout_obs, rollout_acts, rollout_lprobs, rollout_rewards_to_go
 
     def _get_action(self, obs):
         mean = self.actor(obs, self.io_pair_obs)
@@ -140,18 +138,16 @@ class ProximalPolicyOptimizer:
 
     def _compute_rewards_to_go(self, batch_rewards):
 
-        batch_size, num_episodes, timesteps_per_episode = batch_rewards.shape
-        batched_rewards_to_go = torch.empty(batch_size, num_episodes, timesteps_per_episode)
+        num_episodes, timesteps_per_episode, batch_size = batch_rewards.shape
+        rollout_rewards_to_go = torch.empty(num_episodes, timesteps_per_episode, batch_size)
 
         for ep_num in range(num_episodes):
-
             discounted_reward = torch.zeros(batch_size)
 
             for timestep in reversed(range(timesteps_per_episode)):
-                discounted_reward += batch_rewards[:, ep_num, timestep] + \
-                        self.hparams.gamma * discounted_reward
+                discounted_reward += batch_rewards[ep_num, timestep] + \
+                    self.hparams.gamma * discounted_reward
 
-                batched_rewards_to_go[:, ep_num, timesteps_per_episode - timestep - 1] = \
-                        discounted_reward.clone()
+                rollout_rewards_to_go[ep_num, timestep] = discounted_reward.clone()
 
-        return batched_rewards_to_go
+        return rollout_rewards_to_go

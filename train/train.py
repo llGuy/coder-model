@@ -17,11 +17,11 @@ def main(params: TrainParams):
     print(f"IO pair observation size: {sim.io_pair_observation_size}")
     print(f"Action size: {sim.action_size}");
 
-    # Placeholder values
+    # Placeholder values - each rollout will have a total of 30 timesteps
     hparams = ppo.HyperParameters(
         batch_size=params.batch_size,
-        timesteps_per_rollout=30,
-        max_timesteps_per_episode=15,
+        num_episodes_per_rollout=2,
+        num_timesteps_per_episode=15,
         delta=0.1,
         gamma=0.2,
         num_epochs=5
