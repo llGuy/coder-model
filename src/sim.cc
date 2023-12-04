@@ -1,5 +1,6 @@
 #include "sim.h"
 #include "prog.h"
+#include "bitv.h"
 
 #include <string>
 #include <fstream>
@@ -7,18 +8,34 @@
 
 namespace nb = nanobind;
 
+/* Describes how well the agent has progressed after applying action. */
+struct ActionEval {
+    uint32_t numMatchesBefore;
+    uint32_t numMatchesAfter;
+    uint32_t gainedMatches;
+    uint32_t keptMatches;
+    uint32_t lostMatches;
+
+    float reward()
+    {
+        return (float)gainedMatches - 0.9f * (float)lostMatches;
+    }
+};
+
 struct ExecutionStatus {
     bool ioMatch;
     uint32_t diffs[kMaxOutputs];
 };
 
 /* This encapsulates the "instructions" of the output program */
-struct Program {
+struct ProgramState {
     static inline constexpr uint32_t kNumTokensPerProg = 
         kProgramNumInstructions * 3;
 
     /* Each instruction has 3 entries (op leftOperand rightOperand) */
     uint8_t tokens[kProgramNumInstructions][3];
+
+    BitVector currentMatches;
 };
 
 struct SimManager::Impl {
@@ -33,7 +50,7 @@ struct SimManager::Impl {
     void *ioPairsU32;
 
     /* The current state for tall the programs in the batch */
-    Program *progs;
+    ProgramState *progs;
 
     float *rewards;
 
@@ -89,17 +106,23 @@ static std::pair<float *, uint32_t *> loadIOPairs(uint32_t num_worlds)
     return std::make_pair((float *)io_pairs, io_pairs_u32);
 }
 
-static void resetProgram(Program *prog)
+static void resetProgram(ProgramState *prog)
 {
     for (int i = 0; i < kProgramNumInstructions; ++i) {
         prog->tokens[i][0] = operationToByte(Operation::Mov);
         prog->tokens[i][1] = leftOperandToByte(Operand::Input, i % kMaxInputs);
         prog->tokens[i][2] = rightOperandToByte(Operand::Literal, 0);
     }
+
+    if (!prog->currentMatches.bytes) {
+        new(&prog->currentMatches) BitVector(kNumIOPairs);
+    }
+
+    prog->currentMatches.reset();
 }
 
 static void applyAction(uint32_t num_worlds,
-                        Program *programs,
+                        ProgramState *programs,
                         uint32_t current_token_id,
                         ActionTensor &actions)
 {
@@ -143,7 +166,39 @@ static void applyAction(uint32_t num_worlds,
     }
 }
 
-static ExecutionStatus executeProgram(Program *program,
+static ActionEval evaluateAction(BitVector *matches_before,
+                                 BitVector *matches_after)
+{
+    assert(matches_after->bytes && matches_after->numBytes);
+
+    uint32_t num_matches_before = 0;
+    uint32_t num_matches_after = 0;
+    uint32_t gained_matches = 0;
+    uint32_t kept_matches = 0;
+    uint32_t lost_matches = 0;
+
+    for (int i = 0; i < matches_before->numBytes; ++i) {
+        num_matches_before += popCount(matches_before->bytes[i]);
+        num_matches_after += popCount(matches_after->bytes[i]);
+
+        gained_matches += popCount((~matches_before->bytes[i]) & 
+                                   matches_after->bytes[i]);
+        lost_matches += popCount(matches_before->bytes[i] & 
+                                 (~matches_after->bytes[i]));
+        kept_matches += popCount(matches_before->bytes[i] & 
+                                 matches_after->bytes[i]);
+    }
+
+    return {
+        num_matches_before,
+        num_matches_after,
+        gained_matches,
+        kept_matches,
+        lost_matches
+    };
+}
+
+static ExecutionStatus executeProgram(ProgramState *program,
                                       uint32_t *io_inputs,
                                       uint32_t *io_outputs)
 {
@@ -232,7 +287,7 @@ static ExecutionStatus executeProgram(Program *program,
 }
 
 static void checkPrograms(uint32_t num_worlds,
-                          Program *programs,
+                          ProgramState *programs,
                           uint32_t *io_pairs,
                           float *rewards_out)
 {
@@ -240,11 +295,13 @@ static void checkPrograms(uint32_t num_worlds,
 
     /* Run the program on all the IO pairs and count the amount of matching. */
     for (int prog_idx = 0; prog_idx < num_worlds; ++prog_idx) {
-        Program *current_prog = programs + prog_idx;
+        ProgramState *current_prog = programs + prog_idx;
 
         uint32_t *current_io_pairs = io_pairs + prog_idx * num_ints_per_set;
 
-        float rewards_for_prog = 0.0f;
+        BitVector matches(kNumIOPairs);
+
+        assert(matches.bytes);
         
         for (int io_pair_idx = 0; io_pair_idx < kNumIOPairs; ++io_pair_idx) {
             uint32_t *current_io_ptr = current_io_pairs + 
@@ -256,22 +313,33 @@ static void checkPrograms(uint32_t num_worlds,
             auto status = executeProgram(current_prog, current_inputs, current_outputs);
 
             if (status.ioMatch) {
-                rewards_for_prog += 1.0f;
-            }
-            else {
-                uint32_t matches = 0;
-                for (int d = 0; d < kMaxOutputs; ++d)
-                    if (status.diffs[d] == 0)
-                        matches++;
-
-                /* Give some more reward if there are 2 matches */
-                if (matches == 2) {
-                    rewards_for_prog += 0.1f;
-                }
+                matches.setBit(io_pair_idx, 1);
             }
         }
 
-        rewards_out[prog_idx] = rewards_for_prog;
+        assert(matches.bytes);
+
+        /* Evaluate the new program */
+        ActionEval evaluation = evaluateAction(
+            &current_prog->currentMatches, &matches);
+
+#if 0
+        printf("(%f) num_matches_before = %d "
+               "num_matches_after = %d " 
+               "gained_matches = %d "
+               "kept_matches = %d "
+               "lost_matches = %d\n",
+               evaluation.reward(),
+               evaluation.numMatchesBefore,
+               evaluation.numMatchesAfter,
+               evaluation.gainedMatches,
+               evaluation.keptMatches,
+               evaluation.lostMatches);
+#endif
+
+        current_prog->currentMatches = std::move(matches);
+
+        rewards_out[prog_idx] = evaluation.reward();
     }
 }
 
@@ -288,7 +356,8 @@ void SimManager::reset()
     impl->globalTimeStep = 0;
 
     if (!impl->progs) {
-        impl->progs = (Program *)malloc(sizeof(Program) * impl->numWorlds);
+        impl->progs = (ProgramState *)malloc(sizeof(ProgramState) * impl->numWorlds);
+        memset(impl->progs, 0, sizeof(ProgramState) * impl->numWorlds);
     }
 
     if (!impl->rewards) {
@@ -310,7 +379,7 @@ void SimManager::step(ActionTensor action_tensor)
 
     /* Apply the modification to the program. */
     applyAction(impl->numWorlds, impl->progs, 
-                impl->globalTimeStep % Program::kNumTokensPerProg,
+                impl->globalTimeStep % ProgramState::kNumTokensPerProg,
                 action_tensor);
 
     checkPrograms(impl->numWorlds, impl->progs,
@@ -330,7 +399,7 @@ ProgObservationTensor SimManager::getProgObservations()
 
     /* Encode the programs into the tensor values. */
     for (int i = 0; i < impl->numWorlds; ++i) {
-        Program *prog = impl->progs + i;
+        ProgramState *prog = impl->progs + i;
 
         float *current_ptr = tensor_values + i * kProgObservationSize;
         *(current_ptr++) = (float)token_cursor;

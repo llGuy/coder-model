@@ -86,6 +86,8 @@ class ProximalPolicyOptimizer:
         while global_num_timesteps < total_time_steps:
             rollout_obs, rollout_acts, rollout_lprobs, rollout_rtgs = self._rollout()
 
+            print(f"mean rewards to go: {rollout_rtgs.mean().item()}")
+
             V, _ = self.evaluate(rollout_obs, rollout_acts)
             A_k = rollout_rtgs - V.detach()
 
@@ -107,7 +109,8 @@ class ProximalPolicyOptimizer:
                 self.critic_optim.zero_grad()
                 critic_loss.backward()
                 self.critic_optim.step()
-                print(actor_loss, critic_loss)
+
+                print(f"actor loss: {actor_loss.item()}, critic loss {critic_loss.item()}")
 
             global_num_timesteps += self.hparams.num_episodes_per_rollout * \
                     self.hparams.num_timesteps_per_episode

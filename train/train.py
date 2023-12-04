@@ -20,18 +20,18 @@ def main(params: TrainParams):
     # Placeholder values - each rollout will have a total of 30 timesteps
     hparams = ppo.HyperParameters(
         batch_size=params.batch_size,
-        num_episodes_per_rollout=2,
-        num_timesteps_per_episode=15,
+        num_episodes_per_rollout=10,
+        num_timesteps_per_episode=15*5,
         delta=0.1,
         gamma=0.2,
-        num_epochs=5,
+        num_epochs=32,
         clip=0.2,
         lr=0.001
     )
 
     optimizer = ppo.ProximalPolicyOptimizer(env, hparams)
 
-    optimizer.learn(1000)
+    optimizer.learn(10000)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
