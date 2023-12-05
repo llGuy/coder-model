@@ -91,10 +91,11 @@ class ProximalPolicyOptimizer:
             V, _ = self.evaluate(rollout_obs, rollout_acts)
             A_k = rollout_rtgs - V.detach()
 
+            # Normalize
             A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
 
             for _ in range(self.hparams.num_epochs):
-                V, cur_lprobs = self.evaluate(rollout_obs, rollout_acts)
+                _, cur_lprobs = self.evaluate(rollout_obs, rollout_acts)
                 ratios = torch.exp(cur_lprobs - rollout_lprobs)
 
                 surr1 = ratios * A_k
@@ -119,7 +120,7 @@ class ProximalPolicyOptimizer:
         h = self.hparams
 
         # (num_episodes, timesteps_per_episode, batch_size, state_dim)
-        rollout_obs = torch.empty(
+        rollout_obs = torch.zeros(
             h.num_episodes_per_rollout,
             h.num_timesteps_per_episode,
             h.batch_size,
@@ -127,7 +128,7 @@ class ProximalPolicyOptimizer:
         )
 
         # (num_episodes, timesteps_per_episode, batch_size, act_dim)
-        rollout_acts = torch.empty(
+        rollout_acts = torch.zeros(
             h.num_episodes_per_rollout,
             h.num_timesteps_per_episode,
             h.batch_size,
@@ -135,14 +136,14 @@ class ProximalPolicyOptimizer:
         )
 
         # (num_episodes, timesteps_per_episode, batch_size)
-        rollout_lprobs = torch.empty(
+        rollout_lprobs = torch.zeros(
             h.num_episodes_per_rollout,
             h.num_timesteps_per_episode,
             h.batch_size
         )
 
         # (num_episodes, timesteps_per_episode, batch_size)
-        rollout_rewards = torch.empty(
+        rollout_rewards = torch.zeros(
             h.num_episodes_per_rollout,
             h.num_timesteps_per_episode,
             h.batch_size
@@ -186,9 +187,8 @@ class ProximalPolicyOptimizer:
         return action.detach(), log_prob.detach()
 
     def _compute_rewards_to_go(self, batch_rewards):
-
         num_episodes, timesteps_per_episode, batch_size = batch_rewards.shape
-        rollout_rewards_to_go = torch.empty(num_episodes, timesteps_per_episode, batch_size)
+        rollout_rewards_to_go = torch.zeros(num_episodes, timesteps_per_episode, batch_size)
 
         for ep_num in range(num_episodes):
             discounted_reward = torch.zeros(batch_size)
@@ -197,6 +197,6 @@ class ProximalPolicyOptimizer:
                 discounted_reward += batch_rewards[ep_num, timestep] + \
                     self.hparams.gamma * discounted_reward
 
-                rollout_rewards_to_go[ep_num, timestep] = discounted_reward.clone()
+                rollout_rewards_to_go[ep_num, timestep] = discounted_reward
 
         return rollout_rewards_to_go
