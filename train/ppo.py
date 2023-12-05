@@ -95,7 +95,7 @@ class ProximalPolicyOptimizer:
             A_k = (A_k - A_k.mean()) / (A_k.std() + 1e-10)
 
             for _ in range(self.hparams.num_epochs):
-                _, cur_lprobs = self.evaluate(rollout_obs, rollout_acts)
+                V, cur_lprobs = self.evaluate(rollout_obs, rollout_acts)
                 ratios = torch.exp(cur_lprobs - rollout_lprobs)
 
                 surr1 = ratios * A_k
