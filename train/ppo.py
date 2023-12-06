@@ -90,13 +90,16 @@ class ProximalPolicyOptimizer:
         # Keep track of how many steps in total have been simulated across batches
         global_num_timesteps = 0
 
-        last_mean_rewards_to_go = 0
+        last_num_matches_mean = 0
 
         while global_num_timesteps < total_time_steps:
             rollout_obs, rollout_acts, rollout_lprobs, rollout_rtgs = self._rollout()
 
-            last_mean_rewards_to_go = rollout_rtgs.mean().item()
-            print(f"mean rewards to go: {last_mean_rewards_to_go}")
+            matches_tensor = self.env.get_matches()
+
+            last_num_matches_mean = matches_tensor.mean().item()
+            rollout_rtgs_mean = rollout_rtgs.mean().item()
+            print(f"Mean number of matches: {last_num_matches_mean}, mean rollouts to go: {rollout_rtgs_mean}")
 
             V, _ = self.evaluate(rollout_obs, rollout_acts)
             A_k = rollout_rtgs - V.detach()
@@ -132,7 +135,7 @@ class ProximalPolicyOptimizer:
             os.makedirs(models_path)
             print("Made ../models directory")
 
-        base_path = model.model_filename_base(last_mean_rewards_to_go)
+        base_path = model.model_filename_base(last_num_matches_mean)
 
         actor_path = models_path + "actor_" + base_path
         critic_path = models_path + "critic_" + base_path

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 @dataclass
 class TrainParams:
     batch_size: int
+    total_timesteps: int
 
 def main(params: TrainParams):
     # Create the simulation manager
@@ -31,15 +32,16 @@ def main(params: TrainParams):
     )
 
     optimizer = ppo.ProximalPolicyOptimizer(env, hparams)
-    optimizer.learn(10 * 15 * 5)
+    optimizer.learn(params.total_timesteps)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # If run==train
     parser.add_argument('--batch_size', type=int, required=True)
+    parser.add_argument('--total_timesteps', type=int, required=True)
     args = parser.parse_args()
 
-    params = TrainParams(args.batch_size)
+    params = TrainParams(args.batch_size, args.total_timesteps)
 
     main(params)

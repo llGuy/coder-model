@@ -16,7 +16,8 @@ NB_MODULE(coder_model_sim, m) {
         .def("step", &SimManager::step, nb::arg("action_tensor"))
         .def("get_prog_observations", &SimManager::getProgObservations)
         .def("get_io_pair_observations", &SimManager::getIOPairObservations)
-        .def("get_rewards", &SimManager::getRewards);
+        .def("get_rewards", &SimManager::getRewards)
+        .def("get_matches", &SimManager::getMatches);
 
     m.attr("prog_observation_size") = kProgObservationSize;
     m.attr("io_pair_observation_size") = kIOPairObservationSize;

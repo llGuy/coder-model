@@ -38,6 +38,12 @@ using RewardTensor = nanobind::ndarray<
     nanobind::shape<nanobind::any>
 >;
 
+using MatchTensor = nanobind::ndarray<
+    nanobind::pytorch,
+    float,
+    nanobind::shape<nanobind::any>
+>;
+
 /* Handles the simulation. Just for the sake of RL terminology,
  * each "world" is going to be a simulation where an agent tries to
  * generate the correct program */
@@ -62,4 +68,6 @@ struct SimManager {
     IOPairObservationTensor getIOPairObservations();
 
     RewardTensor getRewards();
+
+    MatchTensor getMatches();
 };

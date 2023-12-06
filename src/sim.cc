@@ -37,6 +37,8 @@ struct ProgramState {
     uint8_t tokens[kProgramNumInstructions][3];
 
     BitVector currentMatches;
+
+    uint32_t numMatches;
 };
 
 struct SimManager::Impl {
@@ -110,7 +112,7 @@ static std::pair<float *, int32_t *> loadIOPairs(uint32_t num_worlds)
 #endif
     }
 
-#if 1
+#if 0
     for (int i = 0; i < num_worlds * bytes_per_io_set / sizeof(float); ++i) {
         printf("%f ", io_pairs_f32[i]);
     }
@@ -119,8 +121,6 @@ static std::pair<float *, int32_t *> loadIOPairs(uint32_t num_worlds)
         printf("%i ", io_pairs_i32[i]);
     }
 #endif
-
-    printf("\n");
 
     fflush(stdout);
 
@@ -140,6 +140,8 @@ static void resetProgram(ProgramState *prog)
     }
 
     prog->currentMatches.reset();
+
+    prog->numMatches = 0;
 }
 
 static void applyAction(uint32_t num_worlds,
@@ -395,6 +397,7 @@ static void checkPrograms(uint32_t num_worlds,
 #endif
 
         current_prog->currentMatches = std::move(matches);
+        current_prog->numMatches = num_matches;
 
         rewards_out[prog_idx] = evaluation.reward();
 
@@ -512,5 +515,23 @@ RewardTensor SimManager::getRewards()
     });
 
     return RewardTensor(tensor_values, 
+        { impl->numWorlds }, owner);   
+}
+
+MatchTensor SimManager::getMatches()
+{
+    /* Allocate the match tensor and fill in */
+    uint32_t tensor_floats = impl->numWorlds;
+    float *tensor_values = new float[tensor_floats];
+
+    for (int i = 0; i < impl->numWorlds; ++i) {
+        tensor_values[i] = (float)impl->progs[i].numMatches;
+    }
+
+    nb::capsule owner(tensor_values, [](void *p) noexcept {
+        delete[] (float *) p;
+    });
+
+    return MatchTensor(tensor_values, 
         { impl->numWorlds }, owner);   
 }
