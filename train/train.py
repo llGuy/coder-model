@@ -31,7 +31,7 @@ def main(params: TrainParams):
 
     optimizer = ppo.ProximalPolicyOptimizer(env, hparams)
 
-    optimizer.learn(10000)
+    optimizer.learn(1000000)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

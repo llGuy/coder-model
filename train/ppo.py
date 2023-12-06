@@ -27,6 +27,10 @@ class ProximalPolicyOptimizer:
         self.io_pair_obs_space = sim.io_pair_observation_size
         self.action_space = sim.action_size
 
+        print(f"prog_obs_space={self.prog_obs_space}")
+        print(f"io_pair_obs_space={self.io_pair_obs_space}")
+        print(f"action_space={self.action_space}")
+
         self.env = env
         self.hparams = hparams
 

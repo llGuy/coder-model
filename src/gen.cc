@@ -302,6 +302,99 @@ int *executeProgram(const Program &program)
     return outputs;
 }
 
+bool saveProgram(uint32_t prog_idx,
+                 Rand &rnd,
+                 const std::string &dirPath)
+{
+    namespace fs = std::filesystem;
+
+    uint8_t numInputs = (uint8_t) rnd.next(2, kMaxInputs+1);
+    uint8_t numOutputs = (uint8_t) rnd.next(2, numInputs+1);
+
+    /* Generate the program */
+    float *src = makeProgram(numInputs, rnd);
+
+#if 0
+    { /* Save the program to a file. */
+        std::string programFileName = "src-" + std::to_string(i);
+        std::fstream stream(fs::path(dirPath) / programFileName, std::ios::binary | std::ios::out);
+        assert(stream.is_open());
+        stream.write(reinterpret_cast<const char *>(src), PROGRAM_SIZE_BYTES);
+    }
+#endif
+
+    Program prog = {
+        .numInputs = numInputs,
+        .numOutputs = numOutputs,
+        .src = src,
+        .inputs = nullptr
+    };
+
+    uint32_t num_floats = kNumIOPairs * (kMaxInputs + kMaxOutputs);
+    float *float_tensor = (float *)malloc(sizeof(float) * num_floats);
+    uint32_t float_counter = 0;
+
+    uint32_t all_zero_counter = 0;
+
+    /* Generate the input output pairs. */
+    for (int ioPair = 0; ioPair < kNumIOPairs; ++ioPair) {
+        int inputs[kMaxInputs] = {};
+        int outputs[kMaxOutputs] = {};
+
+        while (inputs[0] == 0 && inputs[1] == 0 && inputs[2] == 0) {
+            for (int j = 0; j < prog.numInputs; ++j) {
+                inputs[j] = rnd.next() % 64;
+            }
+        }
+
+        if (inputs[0] == 0 && inputs[1] == 0 && inputs[2] == 0) {
+            printf("bitch\n");
+        }
+
+        prog.inputs = inputs;
+
+        int *out = executeProgram(prog);
+
+        if (out[0] == 0 && out[1] == 0 && out[2] == 0) {
+            all_zero_counter++;
+        }
+
+        for (int j = 0; j < prog.numOutputs; ++j) {
+            outputs[j] = out[j];
+        }
+
+        free(out);
+
+        for (int j = 0; j < kMaxInputs; ++j) {
+            float_tensor[float_counter++] = (float)inputs[j];
+        }
+
+        for (int j = 0; j < kMaxOutputs; ++j) {
+            float_tensor[float_counter++] = (float)outputs[j];
+        }
+    }
+
+    if (all_zero_counter == kNumIOPairs) {
+        printf("Rejected!\n");
+        return false;
+    }
+
+    /* Write the input output pair file. */
+    std::string ioFileName = "io-pair-" + std::to_string(prog_idx);
+    std::fstream stream(fs::path(dirPath) / ioFileName, std::ios::binary | std::ios::out);
+    assert(stream.is_open());
+
+    stream.write((const char *)float_tensor, sizeof(float) * num_floats);
+
+    stream.flush();
+    stream.close();
+
+    free(float_tensor);
+    free(src);
+
+    return true;
+}
+
 void generateSet(const char *dirPath, uint32_t numExamples)
 {
     namespace fs = std::filesystem;
@@ -314,75 +407,7 @@ void generateSet(const char *dirPath, uint32_t numExamples)
     };
 
     for (int i = 0; i < numExamples; ++i) {
-        uint8_t numInputs = (uint8_t) rnd.next(2, kMaxInputs+1);
-        uint8_t numOutputs = (uint8_t) rnd.next(2, numInputs+1);
-
-        /* Generate the program */
-        float *src = makeProgram(numInputs, rnd);
-
-        { /* Save the program to a file. */
-            std::string programFileName = "src-" + std::to_string(i);
-            std::fstream stream(fs::path(dirPath) / programFileName, std::ios::binary | std::ios::out);
-            assert(stream.is_open());
-            stream.write(reinterpret_cast<const char *>(src), PROGRAM_SIZE_BYTES);
-        }
-
-        Program prog = {
-            .numInputs = numInputs,
-            .numOutputs = numOutputs,
-            .src = src,
-            .inputs = nullptr
-        };
-
-        /* Write the input output pair file. */
-        std::string ioFileName = "io-pair-" + std::to_string(i);
-        std::fstream stream(fs::path(dirPath) / ioFileName, std::ios::binary | std::ios::out);
-        assert(stream.is_open());
-
-        /* Generate the input output pairs. */
-        for (int ioPair = 0; ioPair < 1000; ++ioPair) {
-            int inputs[kMaxInputs] = {};
-            for (int j = 0; j < kMaxInputs; ++j) {
-                inputs[j] = rnd.next() % 64;
-            }
-
-            prog.inputs = inputs;
-
-            int *outputs = executeProgram(prog);
-
-            float *outputs_float = (float *)malloc(sizeof(float) * numInputs);
-            float *inputs_float = (float *)malloc(sizeof(float) * numOutputs);
-
-            for (int x = 0; x < numInputs; ++x) {
-                inputs_float[x] = (float)inputs[x];
-            }
-
-            for (int x = 0; x < numOutputs; ++x) {
-                outputs_float[x] = (float)outputs[x];
-            }
-
-            /* Write the input output pair to a file. */
-            float filler = 0.0f;
-            for (int j = 0; j < numInputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(inputs_float + j), sizeof(float)); 
-            }
-
-            for (int j = 0; j < kMaxInputs - numInputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(&filler), sizeof(float)); 
-            }
-
-            for (int j = 0; j < numOutputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(outputs_float + j), sizeof(float)); 
-            }
-
-            for (int j = 0; j < kMaxOutputs - numOutputs; ++j) { 
-                stream.write(reinterpret_cast<char const *>(&filler), sizeof(float)); 
-            }
-
-            free(outputs);
-        }
-
-        free(src);
+        while (!saveProgram(i, rnd, dirPath));
     }
 }
 

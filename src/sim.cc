@@ -18,7 +18,8 @@ struct ActionEval {
 
     float reward()
     {
-        return (float)gainedMatches - 0.9f * (float)lostMatches;
+        return 0.1f * ((float)keptMatches * 0.0001f + 
+               (float)gainedMatches - 0.9f * (float)lostMatches);
     }
 };
 
@@ -55,11 +56,11 @@ struct SimManager::Impl {
     float *rewards;
 
     Impl(uint32_t num_worlds,
-         std::pair<float *, uint32_t *> io_pairs);
+         std::pair<float *, int32_t *> io_pairs);
 };
 
 SimManager::Impl::Impl(uint32_t num_worlds,
-                       std::pair<float *, uint32_t *> io_pairs)
+                       std::pair<float *, int32_t *> io_pairs)
     : globalTimeStep(0),
       numWorlds(num_worlds),
       ioPairs(io_pairs.first),
@@ -69,26 +70,26 @@ SimManager::Impl::Impl(uint32_t num_worlds,
 {
 }
 
-static std::pair<float *, uint32_t *> loadIOPairs(uint32_t num_worlds)
+static std::pair<float *, int32_t *> loadIOPairs(uint32_t num_worlds)
 {
     namespace fs = std::filesystem;
 
     uint32_t num_floats_per_set = (kMaxInputs + kMaxOutputs) * kNumIOPairs;
     uint32_t bytes_per_io_set = num_floats_per_set * sizeof(float);
 
-    void *io_pairs = malloc(num_worlds * bytes_per_io_set);
-    uint32_t *io_pairs_u32 = (uint32_t *)malloc(num_worlds * bytes_per_io_set);
+    float *io_pairs_f32 = (float *)malloc(num_worlds * bytes_per_io_set);
+    int32_t *io_pairs_i32 = (int32_t *)malloc(num_worlds * bytes_per_io_set);
 
     const fs::path kDatasetDir = fs::path(PROJECT_DIR) / "dataset";
     const fs::path kTrainDir = kDatasetDir / "train";
 
     /* Load all the IO pairs now */
     for (int io_set = 0; io_set < num_worlds; ++io_set) {
-        uint8_t *current_set_ptr = (uint8_t *)io_pairs + 
-                                   bytes_per_io_set * io_set;
+        float *current_set_ptr = io_pairs_f32 + 
+                                 num_floats_per_set * io_set;
 
-        uint32_t *current_set_u32_ptr = io_pairs_u32 +
-                                        num_floats_per_set * io_set;
+        int32_t *current_set_i32_ptr = io_pairs_i32 +
+                                   num_floats_per_set * io_set;
 
         std::string file_name = "io-pair-" + std::to_string(io_set);
         fs::path set_path = kTrainDir / file_name;
@@ -99,11 +100,31 @@ static std::pair<float *, uint32_t *> loadIOPairs(uint32_t num_worlds)
         file_stream.read((char *)current_set_ptr, bytes_per_io_set);
 
         for (int p = 0; p < num_floats_per_set; ++p) {
-            current_set_u32_ptr[p] = *((float *)current_set_ptr + p);
+            current_set_i32_ptr[p] = (int32_t)current_set_ptr[p];
         }
+
+#if 0
+        for (int p = 0; p < num_floats_per_set; ++p) {
+            current_set_ptr[p] *= 0.001f;
+        }
+#endif
     }
 
-    return std::make_pair((float *)io_pairs, io_pairs_u32);
+#if 1
+    for (int i = 0; i < num_worlds * bytes_per_io_set / sizeof(float); ++i) {
+        printf("%f ", io_pairs_f32[i]);
+    }
+
+    for (int i = 0; i < num_worlds * bytes_per_io_set / sizeof(float); ++i) {
+        printf("%i ", io_pairs_i32[i]);
+    }
+#endif
+
+    printf("\n");
+
+    fflush(stdout);
+
+    return std::make_pair((float *)io_pairs_f32, io_pairs_i32);
 }
 
 static void resetProgram(ProgramState *prog)
@@ -199,8 +220,8 @@ static ActionEval evaluateAction(BitVector *matches_before,
 }
 
 static ExecutionStatus executeProgram(ProgramState *program,
-                                      uint32_t *io_inputs,
-                                      uint32_t *io_outputs)
+                                      int32_t *io_inputs,
+                                      int32_t *io_outputs)
 {
     int inputs[kMaxInputs] = {};
     int registers[kNumRegisters] {};
@@ -288,33 +309,50 @@ static ExecutionStatus executeProgram(ProgramState *program,
 
 static void checkPrograms(uint32_t num_worlds,
                           ProgramState *programs,
-                          uint32_t *io_pairs,
-                          float *rewards_out)
+                          int32_t *io_pairs,
+                          float *rewards_out,
+                          uint32_t global_time_step)
 {
     uint32_t num_ints_per_set = (kMaxInputs + kMaxOutputs) * kNumIOPairs;
+
+    uint32_t max_matches = 0;
+    uint32_t best_agent = 0;
 
     /* Run the program on all the IO pairs and count the amount of matching. */
     for (int prog_idx = 0; prog_idx < num_worlds; ++prog_idx) {
         ProgramState *current_prog = programs + prog_idx;
 
-        uint32_t *current_io_pairs = io_pairs + prog_idx * num_ints_per_set;
+        int32_t *current_io_pairs = io_pairs + prog_idx * num_ints_per_set;
 
         BitVector matches(kNumIOPairs);
 
         assert(matches.bytes);
+
+        uint32_t num_matches = 0;
+
+        uint32_t all_zero_counter = 0;
         
         for (int io_pair_idx = 0; io_pair_idx < kNumIOPairs; ++io_pair_idx) {
-            uint32_t *current_io_ptr = current_io_pairs + 
+            int32_t *current_io_ptr = current_io_pairs + 
                                        io_pair_idx * (kMaxInputs + kMaxOutputs);
 
-            uint32_t *current_inputs = current_io_ptr;
-            uint32_t *current_outputs = current_io_ptr + kMaxInputs;
+            int32_t *current_inputs = current_io_ptr;
+            int32_t *current_outputs = current_io_ptr + kMaxInputs;
+
+            if (current_outputs[0] == 0 && current_outputs[1] == 0 && current_outputs[2] == 0) {
+                all_zero_counter++;
+            }
 
             auto status = executeProgram(current_prog, current_inputs, current_outputs);
 
             if (status.ioMatch) {
                 matches.setBit(io_pair_idx, 1);
+                num_matches++;
             }
+        }
+
+        if (all_zero_counter == kNumIOPairs) {
+            printf("Motherfucker\n");
         }
 
         assert(matches.bytes);
@@ -323,23 +361,47 @@ static void checkPrograms(uint32_t num_worlds,
         ActionEval evaluation = evaluateAction(
             &current_prog->currentMatches, &matches);
 
+        if (num_matches == kNumIOPairs) {
+            printf("What the fuck\n");
+
 #if 0
-        printf("(%f) num_matches_before = %d "
-               "num_matches_after = %d " 
-               "gained_matches = %d "
-               "kept_matches = %d "
-               "lost_matches = %d\n",
-               evaluation.reward(),
-               evaluation.numMatchesBefore,
-               evaluation.numMatchesAfter,
-               evaluation.gainedMatches,
-               evaluation.keptMatches,
-               evaluation.lostMatches);
+            for (int io_pair_idx = 0; io_pair_idx < kNumIOPairs; ++io_pair_idx) {
+                int32_t *current_io_ptr = current_io_pairs + 
+                                           io_pair_idx * (kMaxInputs + kMaxOutputs);
+
+                int32_t *current_inputs = current_io_ptr;
+                int32_t *current_outputs = current_io_ptr + kMaxInputs;
+
+                auto status = executeProgram(current_prog, current_inputs, current_outputs);
+            }
+#endif
+        }
+
+#if 0
+        if (evaluation.reward() < 0.0f) {
+            printf("(t=%u) (%f) num_matches_before = %d "
+                    "num_matches_after = %d " 
+                    "gained_matches = %d "
+                    "kept_matches = %d "
+                    "lost_matches = %d\n",
+                    global_time_step,
+                    evaluation.reward(),
+                    evaluation.numMatchesBefore,
+                    evaluation.numMatchesAfter,
+                    evaluation.gainedMatches,
+                    evaluation.keptMatches,
+                    evaluation.lostMatches);
+        }
 #endif
 
         current_prog->currentMatches = std::move(matches);
 
         rewards_out[prog_idx] = evaluation.reward();
+
+        if (num_matches > max_matches) {
+            max_matches = num_matches;
+            best_agent = prog_idx;
+        }
     }
 }
 
@@ -383,8 +445,9 @@ void SimManager::step(ActionTensor action_tensor)
                 action_tensor);
 
     checkPrograms(impl->numWorlds, impl->progs,
-                  (uint32_t *)impl->ioPairsU32,
-                  impl->rewards);
+                  (int32_t *)impl->ioPairsU32,
+                  impl->rewards,
+                  impl->globalTimeStep);
 
     ++impl->globalTimeStep;
 }

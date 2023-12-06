@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <assert.h>
 
-inline constexpr uint32_t kNumIOPairs = 1000;
+inline constexpr uint32_t kNumIOPairs = 32;
 
 inline constexpr uint32_t kMaxProgramSize = 2048;
 inline constexpr uint32_t kNumRegisters = 3;
