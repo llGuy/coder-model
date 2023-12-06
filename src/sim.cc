@@ -101,6 +101,10 @@ static std::pair<float *, uint32_t *> loadIOPairs(uint32_t num_worlds)
         for (int p = 0; p < num_floats_per_set; ++p) {
             current_set_u32_ptr[p] = *((float *)current_set_ptr + p);
         }
+
+        for (int p = 0; p < num_floats_per_set; ++p) {
+            current_set_ptr[p] *= 0.001f;
+        }
     }
 
     return std::make_pair((float *)io_pairs, io_pairs_u32);
@@ -133,12 +137,10 @@ static void applyAction(uint32_t num_worlds,
     uint32_t instr_to_mod = current_token_id / 3;
     uint32_t token_to_mod = current_token_id % 3;
 
-    assert(num_worlds == view.shape(0));
-
     for (int i = 0; i < num_worlds; ++i) {
         /* Copy the actions over */
         for (int j = 0; j < kActionSize; ++j) {
-            action_pmf[j] = view(i, j);
+            action_pmf[j] = view(j);
         }
 
         /* The action to take corresponds to the token. */
@@ -374,8 +376,9 @@ void SimManager::step(ActionTensor action_tensor)
 {
     auto action_tensor_view = action_tensor.view();
 
-    uint32_t batch_size = action_tensor_view.shape(0);
-    uint32_t action_size = action_tensor_view.shape(1);
+    // uint32_t batch_size = action_tensor_view.shape(0);
+    uint32_t batch_size = 1;
+    uint32_t action_size = action_tensor_view.shape(0);
 
     /* Apply the modification to the program. */
     applyAction(impl->numWorlds, impl->progs, 
@@ -418,7 +421,7 @@ ProgObservationTensor SimManager::getProgObservations()
     });
 
     return ProgObservationTensor(tensor_values, 
-        { impl->numWorlds, kProgObservationSize }, owner);   
+        { kProgObservationSize }, owner);   
 }
 
 IOPairObservationTensor SimManager::getIOPairObservations()
@@ -433,7 +436,7 @@ IOPairObservationTensor SimManager::getIOPairObservations()
     });
 
     return IOPairObservationTensor(tensor_values, 
-        { impl->numWorlds, kIOPairObservationSize }, owner);   
+        { kIOPairObservationSize }, owner);   
 }
 
 RewardTensor SimManager::getRewards()
@@ -449,5 +452,5 @@ RewardTensor SimManager::getRewards()
     });
 
     return RewardTensor(tensor_values, 
-        { impl->numWorlds }, owner);   
+        {1}, owner);   
 }
