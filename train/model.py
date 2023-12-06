@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import datetime
+
 # This defines a simple multi-layer network which takes in two inputs:
 # - the program observations
 # - the io pair observations
@@ -48,3 +50,13 @@ class MultiLayerNet(nn.Module):
                 merged = F.relu(merged)
 
         return merged
+
+
+# Prefix 'actor_', 'critic_', 'hyper_' when actually saving
+def model_filename_base(mean_reward_to_go):
+    current_datetime = datetime.datetime.now()
+    formatted_datetime = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+
+    # file_name = f"../models/model_{formatted_datetime}_loss_{final_loss}"
+    file_name = f"{mean_reward_to_go}_{formatted_datetime}"
+    return file_name

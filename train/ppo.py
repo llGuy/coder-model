@@ -1,5 +1,8 @@
+import os
+import json
 import model
 import torch
+import datetime
 from torch.optim import Adam
 import torch.nn as nn
 import coder_model_sim as sim
@@ -87,10 +90,13 @@ class ProximalPolicyOptimizer:
         # Keep track of how many steps in total have been simulated across batches
         global_num_timesteps = 0
 
+        last_mean_rewards_to_go = 0
+
         while global_num_timesteps < total_time_steps:
             rollout_obs, rollout_acts, rollout_lprobs, rollout_rtgs = self._rollout()
 
-            print(f"mean rewards to go: {rollout_rtgs.mean().item()}")
+            last_mean_rewards_to_go = rollout_rtgs.mean().item()
+            print(f"mean rewards to go: {last_mean_rewards_to_go}")
 
             V, _ = self.evaluate(rollout_obs, rollout_acts)
             A_k = rollout_rtgs - V.detach()
@@ -119,6 +125,38 @@ class ProximalPolicyOptimizer:
 
             global_num_timesteps += self.hparams.num_episodes_per_rollout * \
                     self.hparams.num_timesteps_per_episode
+
+        models_path = os.path.dirname(__file__) + "/../models/"
+
+        if not os.path.exists(models_path):
+            os.makedirs(models_path)
+            print("Made ../models directory")
+
+        base_path = model.model_filename_base(last_mean_rewards_to_go)
+
+        actor_path = models_path + "actor_" + base_path
+        critic_path = models_path + "critic_" + base_path
+        hp_path = models_path + "hyper_" + base_path + ".json"
+
+        json_dict = {
+            "batch_size": self.hparams.batch_size,
+            "num_episodes_per_rollout": self.hparams.num_episodes_per_rollout,
+            "num_timesteps_per_episode": self.hparams.num_timesteps_per_episode,
+            "delta": self.hparams.delta,
+            "gamma": self.hparams.gamma,
+            "num_epochs": self.hparams.num_epochs,
+            "clip": self.hparams.clip,
+            "lr": self.hparams.lr,
+            "total_timesteps": total_time_steps
+        }
+
+        json_object = json.dumps(json_dict, indent=4)
+
+        torch.save(self.actor, actor_path)
+        torch.save(self.critic, critic_path)
+
+        with open(hp_path, "w") as outfile:
+            outfile.write(json_object)
 
     def _rollout(self):
         h = self.hparams
