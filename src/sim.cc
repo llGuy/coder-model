@@ -476,6 +476,10 @@ ProgObservationTensor SimManager::getProgObservations()
             *(current_ptr++) = (float)prog->tokens[instr_idx][2];
         }
 
+        for (int io_pair = 0; io_pair < kNumIOPairs; ++io_pair) {
+            *(current_ptr++) = (float)(prog->currentMatches.getBit(io_pair) ? 1.0f : 0.0f);
+        }
+
         assert(current_ptr - tensor_values == (i+1) * kProgObservationSize);
     }
 

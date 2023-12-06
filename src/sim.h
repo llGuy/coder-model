@@ -6,7 +6,7 @@
 #include "prog.h"
 
 /* Define size of the observation and action spaces. */
-inline constexpr uint32_t kProgObservationSize = 16;
+inline constexpr uint32_t kProgObservationSize = 16 + kNumIOPairs;
 inline constexpr uint32_t kIOPairObservationSize = 6 * kNumIOPairs;
 inline constexpr uint32_t kActionSize = 31;
 
