@@ -34,8 +34,6 @@ def main(params: TrainParams):
     optimizer.learn(10 * 15 * 5)
 
 if __name__ == "__main__":
-    print('basename:    ', os.path.basename(__file__))
-    print('dirname:     ', os.path.dirname(__file__))
     parser = argparse.ArgumentParser()
 
     # If run==train
