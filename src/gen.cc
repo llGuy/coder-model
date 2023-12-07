@@ -308,8 +308,8 @@ bool saveProgram(uint32_t prog_idx,
 {
     namespace fs = std::filesystem;
 
-    uint8_t numInputs = (uint8_t) rnd.next(2, kMaxInputs+1);
-    uint8_t numOutputs = (uint8_t) rnd.next(2, numInputs+1);
+    uint8_t numInputs = (uint8_t) rnd.next(kMinInputs, kMaxInputs+1);
+    uint8_t numOutputs = (uint8_t) rnd.next(kMinOutputs, numInputs+1);
 
     /* Generate the program */
     float *src = makeProgram(numInputs, rnd);

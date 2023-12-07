@@ -298,13 +298,12 @@ static ExecutionStatus executeProgram(ProgramState *program,
     int *gen_outputs = inputs;
 
     ExecutionStatus status = {};
-    status.diffs[0] = (uint32_t)abs((int)gen_outputs[0] - (int)io_outputs[0]);
-    status.diffs[1] = (uint32_t)abs((int)gen_outputs[1] - (int)io_outputs[1]);
-    status.diffs[2] = (uint32_t)abs((int)gen_outputs[2] - (int)io_outputs[2]);
+    status.ioMatch = true;
 
-    status.ioMatch = (status.diffs[0] == 0 && 
-                      status.diffs[1] == 0 && 
-                      status.diffs[2] == 0);
+    for (int i = 0; i < kMaxOutputs; ++i) {
+        status.diffs[i] = (uint32_t)abs((int)gen_outputs[i] - (int)io_outputs[i]);
+        status.ioMatch = status.ioMatch && (status.diffs[i] == 0);
+    }
 
     return status;
 }
@@ -341,20 +340,12 @@ static void checkPrograms(uint32_t num_worlds,
             int32_t *current_inputs = current_io_ptr;
             int32_t *current_outputs = current_io_ptr + kMaxInputs;
 
-            if (current_outputs[0] == 0 && current_outputs[1] == 0 && current_outputs[2] == 0) {
-                all_zero_counter++;
-            }
-
             auto status = executeProgram(current_prog, current_inputs, current_outputs);
 
             if (status.ioMatch) {
                 matches.setBit(io_pair_idx, 1);
                 num_matches++;
             }
-        }
-
-        if (all_zero_counter == kNumIOPairs) {
-            printf("Motherfucker\n");
         }
 
         assert(matches.bytes);
@@ -364,7 +355,7 @@ static void checkPrograms(uint32_t num_worlds,
             &current_prog->currentMatches, &matches);
 
         if (num_matches == kNumIOPairs) {
-            printf("What the fuck\n");
+            // printf("What the fuck\n");
 
 #if 0
             for (int io_pair_idx = 0; io_pair_idx < kNumIOPairs; ++io_pair_idx) {

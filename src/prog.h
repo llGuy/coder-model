@@ -7,13 +7,33 @@ inline constexpr uint32_t kNumIOPairs = 32;
 
 inline constexpr uint32_t kMaxProgramSize = 2048;
 inline constexpr uint32_t kNumRegisters = 3;
+
+
+// This is the original setup
+#if 0
+inline constexpr uint32_t kMinInputs = 2;
 inline constexpr uint32_t kMaxInputs = 3;
+
+inline constexpr uint32_t kMinOutputs = 2;
 inline constexpr uint32_t kMaxOutputs = 3;
+
+inline constexpr uint32_t kProgramNumInstructions = 5;
+
+#else
+// New setup
+inline constexpr uint32_t kMinInputs = 1;
+inline constexpr uint32_t kMaxInputs = 1;
+
+inline constexpr uint32_t kMinOutputs = 1;
+inline constexpr uint32_t kMaxOutputs = 1;
+
+inline constexpr uint32_t kProgramNumInstructions = 1;
+#endif
+
+
 
 inline constexpr uint32_t kLiteralRange = 20;
 inline constexpr uint32_t kLiteralOffset = 0;
-
-inline constexpr uint32_t kProgramNumInstructions = 5;
 
 #define PROGRAM_NUM_INSTR kProgramNumInstructions
 #define PROGRAM_INSTR_LEN_BYTES (sizeof(float) * (5 + 6 + 26))
