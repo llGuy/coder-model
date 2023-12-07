@@ -104,23 +104,7 @@ static std::pair<float *, int32_t *> loadIOPairs(uint32_t num_worlds)
         for (int p = 0; p < num_floats_per_set; ++p) {
             current_set_i32_ptr[p] = (int32_t)current_set_ptr[p];
         }
-
-#if 0
-        for (int p = 0; p < num_floats_per_set; ++p) {
-            current_set_ptr[p] *= 0.001f;
-        }
-#endif
     }
-
-#if 0
-    for (int i = 0; i < num_worlds * bytes_per_io_set / sizeof(float); ++i) {
-        printf("%f ", io_pairs_f32[i]);
-    }
-
-    for (int i = 0; i < num_worlds * bytes_per_io_set / sizeof(float); ++i) {
-        printf("%i ", io_pairs_i32[i]);
-    }
-#endif
 
     fflush(stdout);
 
@@ -353,39 +337,6 @@ static void checkPrograms(uint32_t num_worlds,
         /* Evaluate the new program */
         ActionEval evaluation = evaluateAction(
             &current_prog->currentMatches, &matches);
-
-        if (num_matches == kNumIOPairs) {
-            // printf("What the fuck\n");
-
-#if 0
-            for (int io_pair_idx = 0; io_pair_idx < kNumIOPairs; ++io_pair_idx) {
-                int32_t *current_io_ptr = current_io_pairs + 
-                                           io_pair_idx * (kMaxInputs + kMaxOutputs);
-
-                int32_t *current_inputs = current_io_ptr;
-                int32_t *current_outputs = current_io_ptr + kMaxInputs;
-
-                auto status = executeProgram(current_prog, current_inputs, current_outputs);
-            }
-#endif
-        }
-
-#if 0
-        if (evaluation.reward() < 0.0f) {
-            printf("(t=%u) (%f) num_matches_before = %d "
-                    "num_matches_after = %d " 
-                    "gained_matches = %d "
-                    "kept_matches = %d "
-                    "lost_matches = %d\n",
-                    global_time_step,
-                    evaluation.reward(),
-                    evaluation.numMatchesBefore,
-                    evaluation.numMatchesAfter,
-                    evaluation.gainedMatches,
-                    evaluation.keptMatches,
-                    evaluation.lostMatches);
-        }
-#endif
 
         current_prog->currentMatches = std::move(matches);
         current_prog->numMatches = num_matches;
