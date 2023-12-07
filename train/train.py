@@ -23,12 +23,12 @@ def main(params: TrainParams):
     hparams = ppo.HyperParameters(
         batch_size=params.batch_size,
         num_episodes_per_rollout=10,
-        num_timesteps_per_episode=15*5,
+        num_timesteps_per_episode=3*2,
         delta=0.1,
         gamma=0.2,
-        num_epochs=32,
+        num_epochs=48,
         clip=0.2,
-        lr=0.001
+        lr=0.0001
     )
 
     optimizer = ppo.ProximalPolicyOptimizer(env, hparams)

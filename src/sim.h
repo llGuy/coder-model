@@ -74,4 +74,6 @@ struct SimManager {
     RewardTensor getRewards();
 
     MatchTensor getMatches();
+
+    void printStats();
 };

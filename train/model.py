@@ -18,22 +18,25 @@ class MultiLayerNet(nn.Module):
         input_dim_io: int,
         post_input_dim: int,
         layer_dims: list[int],
-        output_dim: int
+        output_dim: int,
+        cuda_device = -1
     ):
         super(MultiLayerNet, self).__init__()
 
-        self.prog_fc = nn.Linear(input_dim_prog, post_input_dim)
-        self.io_fc = nn.Linear(input_dim_io, post_input_dim)
+        self.prog_fc = nn.Linear(input_dim_prog, post_input_dim).cuda()
+        self.io_fc = nn.Linear(input_dim_io, post_input_dim).cuda()
 
         self.fc = []
 
         prev_dim = post_input_dim * 2
 
         for hidden_dim in layer_dims:
-            self.fc.append(nn.Linear(prev_dim, hidden_dim))
+            self.fc.append(nn.Linear(prev_dim, hidden_dim).cuda())
             prev_dim = hidden_dim
 
-        self.fc.append(nn.Linear(prev_dim, output_dim))
+        self.fc.append(nn.Linear(prev_dim, output_dim).cuda())
+
+        self.cuda_device = cuda_device
 
     def forward(self, x_prog, x_io_pair):
         a_prog = F.relu(self.prog_fc(x_prog))
@@ -41,6 +44,9 @@ class MultiLayerNet(nn.Module):
 
         # Merge the a_prog and a_io tensors
         merged = torch.cat((a_prog, a_io), dim=len(x_prog.size())-1)
+
+        if self.cuda_device != -1:
+            merged = merged.to(self.cuda_device)
 
         for i in range(len(self.fc)):
             merged = self.fc[i](merged)

@@ -17,7 +17,8 @@ NB_MODULE(coder_model_sim, m) {
         .def("get_prog_observations", &SimManager::getProgObservations)
         .def("get_io_pair_observations", &SimManager::getIOPairObservations)
         .def("get_rewards", &SimManager::getRewards)
-        .def("get_matches", &SimManager::getMatches);
+        .def("get_matches", &SimManager::getMatches)
+        .def("print_stats", &SimManager::printStats);
 
     m.attr("prog_observation_size") = kProgObservationSize;
     m.attr("io_pair_observation_size") = kIOPairObservationSize;

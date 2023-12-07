@@ -18,7 +18,7 @@ struct ActionEval {
 
     float reward()
     {
-        return 0.1f * ((float)keptMatches * 0.0001f + 
+        return 0.5f * (/* (float)keptMatches * 0.0f + */
                (float)gainedMatches - 0.9f * (float)lostMatches);
     }
 };
@@ -87,6 +87,8 @@ static std::pair<float *, int32_t *> loadIOPairs(uint32_t num_worlds)
 
     /* Load all the IO pairs now */
     for (int io_set = 0; io_set < num_worlds; ++io_set) {
+        printf("%d: ", io_set);
+
         float *current_set_ptr = io_pairs_f32 + 
                                  num_floats_per_set * io_set;
 
@@ -103,8 +105,14 @@ static std::pair<float *, int32_t *> loadIOPairs(uint32_t num_worlds)
 
         for (int p = 0; p < num_floats_per_set; ++p) {
             current_set_i32_ptr[p] = (int32_t)current_set_ptr[p];
+
+            printf("%d ", current_set_i32_ptr[p]);
         }
+
+        printf("\n");
     }
+
+    printf("\n");
 
     fflush(stdout);
 
@@ -332,6 +340,22 @@ static void checkPrograms(uint32_t num_worlds,
             }
         }
 
+#if 0
+        if (num_matches == kNumIOPairs) {
+            // printf(".");
+
+            for (int io_pair_idx = 0; io_pair_idx < kNumIOPairs; ++io_pair_idx) {
+                int32_t *current_io_ptr = current_io_pairs + 
+                                           io_pair_idx * (kMaxInputs + kMaxOutputs);
+
+                int32_t *current_inputs = current_io_ptr;
+                int32_t *current_outputs = current_io_ptr + kMaxInputs;
+
+                auto status = executeProgram(current_prog, current_inputs, current_outputs);
+            }
+        }
+#endif
+
         assert(matches.bytes);
 
         /* Evaluate the new program */
@@ -348,6 +372,8 @@ static void checkPrograms(uint32_t num_worlds,
             best_agent = prog_idx;
         }
     }
+
+    // printf("\n");
 }
 
 SimManager::SimManager() = default;
@@ -480,4 +506,15 @@ MatchTensor SimManager::getMatches()
 
     return MatchTensor(tensor_values, 
         { impl->numWorlds }, owner);   
+}
+
+void SimManager::printStats()
+{
+    for (int i = 0; i < impl->numWorlds; ++i) {
+        printf("%d ", impl->progs[i].numMatches);
+    }
+
+    printf("\n");
+
+    fflush(stdout);
 }

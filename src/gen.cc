@@ -341,21 +341,38 @@ bool saveProgram(uint32_t prog_idx,
         int inputs[kMaxInputs] = {};
         int outputs[kMaxOutputs] = {};
 
-        while (inputs[0] == 0 && inputs[1] == 0 && inputs[2] == 0) {
+        while (true) {
+            bool all_zero = true;
+
             for (int j = 0; j < prog.numInputs; ++j) {
                 inputs[j] = rnd.next() % 64;
+
+                all_zero &= (inputs[j] == 0);
             }
+
+            if (!all_zero) break;
         }
 
         if (inputs[0] == 0 && inputs[1] == 0 && inputs[2] == 0) {
             printf("bitch\n");
         }
 
+        if (prog_idx < 32) {
+            for (int i = 0; i < prog.numInputs; ++i) {
+                printf("%d ", inputs[i]);
+            }
+        }
+
         prog.inputs = inputs;
 
         int *out = executeProgram(prog);
 
-        if (out[0] == 0 && out[1] == 0 && out[2] == 0) {
+        bool rejectable = true;
+        for (int i = 0; i < prog.numInputs; ++i) {
+            rejectable &= (out[i] == 0);
+        }
+
+        if (rejectable) {
             all_zero_counter++;
         }
 
@@ -374,8 +391,12 @@ bool saveProgram(uint32_t prog_idx,
         }
     }
 
+    if (prog_idx < 32) {
+        printf("\n");
+    }
+
     if (all_zero_counter == kNumIOPairs) {
-        printf("Rejected!\n");
+        // printf("Rejected!\n");
         return false;
     }
 
