@@ -7,6 +7,7 @@ from torch.optim import Adam
 import torch.nn as nn
 import coder_model_sim as sim
 from dataclasses import dataclass
+import matplotlib.pyplot as plt
 from torch.distributions import MultivariateNormal
 
 @dataclass
@@ -107,6 +108,9 @@ class ProximalPolicyOptimizer:
 
         rollout_idx = 0
 
+        saved_mean_matches = []
+        saved_rtgs_mean = []
+
         while global_num_timesteps < total_time_steps:
             rollout_obs, rollout_acts, rollout_lprobs, rollout_rtgs = self._rollout()
 
@@ -117,6 +121,9 @@ class ProximalPolicyOptimizer:
             last_num_matches_mean = matches_tensor.mean().item()
             rollout_rtgs_mean = rollout_rtgs.mean().item()
             print(f"Mean number of matches: {last_num_matches_mean}, mean rollouts to go: {rollout_rtgs_mean}")
+
+            saved_mean_matches.append(last_num_matches_mean)
+            saved_rtgs_mean.append(rollout_rtgs_mean)
 
             V, _ = self.evaluate(rollout_obs, rollout_acts)
             A_k = rollout_rtgs - V.detach()
@@ -149,6 +156,32 @@ class ProximalPolicyOptimizer:
                 self._save(last_num_matches_mean, total_time_steps, True)
 
         self._save(last_num_matches_mean, total_time_steps, False)
+
+        # Save plots:
+        x_values = list(range(len(saved_mean_matches)))
+
+        plt.plot(x_values, saved_mean_matches, label='Mean Matches Plot')
+        plt.xlabel('Rollout index')
+        plt.ylabel('Mean Achieved Matches')
+        plt.title('Mean Matches vs. Rollout Index')
+
+        plt.legend()
+        plt.savefig('mean_matches.png')
+
+        plt.clf()
+
+        plt.plot(x_values, saved_rtgs_mean, label='Mean Value Plot')
+        plt.xlabel('Rollout index')
+        plt.ylabel('Mean Value')
+        plt.title('Mean Value (Reward to go) vs. Rollout Index')
+
+        plt.legend()
+        plt.savefig('mean_rtgs.png')
+
+        plt.clf()
+
+        print(saved_mean_matches)
+        print(saved_rtgs_mean)
 
     def _save(self, last_num_matches_mean, total_time_steps, tmp=True):
         models_path = os.path.dirname(__file__) + "/../models/"

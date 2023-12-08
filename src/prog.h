@@ -21,13 +21,13 @@ inline constexpr uint32_t kProgramNumInstructions = 5;
 
 #else
 // New setup
-inline constexpr uint32_t kMinInputs = 1;
-inline constexpr uint32_t kMaxInputs = 1;
+inline constexpr uint32_t kMinInputs = 2;
+inline constexpr uint32_t kMaxInputs = 2;
 
-inline constexpr uint32_t kMinOutputs = 1;
-inline constexpr uint32_t kMaxOutputs = 1;
+inline constexpr uint32_t kMinOutputs = 2;
+inline constexpr uint32_t kMaxOutputs = 2;
 
-inline constexpr uint32_t kProgramNumInstructions = 1;
+inline constexpr uint32_t kProgramNumInstructions = 3;
 #endif
 
 

@@ -28,7 +28,7 @@ def main(params: TrainParams):
         gamma=0.2,
         num_epochs=48,
         clip=0.2,
-        lr=0.0001
+        lr=0.0003
     )
 
     optimizer = ppo.ProximalPolicyOptimizer(env, hparams)
